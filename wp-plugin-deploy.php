@@ -9,7 +9,7 @@ if ( $workdir ) {
 }
 
 if ( getenv( 'GITHUB_ACTION' ) ) {
-	sys('git config --global --add safe.directory /github/workspace');
+	sys('git config --global --add safe.directory ' . e( getcwd() ) );
 }
 
 $slug        = basename(getcwd());
@@ -108,14 +108,12 @@ sys("svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ --quiet");
 # Copy tag locally to make this a single commit
 if ( ! $readme_only ) {
 	echo '➤ Copying tag...' . PHP_EOL;
-
-	if ( 'trunk' !== $version ) {
-		sys('svn cp trunk '.e("tags/$version"));
-	}
+	sys('svn cp trunk ' . e("tags/$version"));
 }
 
 # Fix screenshots getting force downloaded when clicking them
 # https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/
+# We use system here because we ignore any errors that happen if these files not exit.
 system('svn propset svn:mime-type image/png assets/*.png');
 system('svn propset svn:mime-type image/jpeg assets/*.jpg');
 
@@ -150,7 +148,7 @@ function required_arg( string $arg ): string {
 	return $getopt[ $arg ];
 }
 
-function arg_with_default( string $arg, $default ): string {
+function arg_with_default( string $arg, $default ) {
 
 	$getopt = getopt( '', [ "$arg::" ] );
 
@@ -169,12 +167,10 @@ function sys( string $command, array $args = [] ): ?string {
 
 	echo "Executing: $command" . PHP_EOL;
 	$out = system( $command, $exit_code );
-	echo PHP_EOL;
+	echo $out . PHP_EOL;
 
 	if ( 0 !== $exit_code || false === $out ) {
-		echo 'Error, output: ';
-		var_dump($out);
-		echo "Exit Code: $exit_code." . PHP_EOL;
+		echo "Exit Code: $exit_code" . PHP_EOL;
 		exit($exit_code);
 	}
 
