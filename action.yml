@@ -11,27 +11,28 @@ inputs:
   svn_pass:
     required: true
   version:
-    description: Is required unless you just update readme and assets
+    description: Git tag you want to deploy, required unless you just update readme and assets
     required: false
   workdir:
-    description: Optional relative path to where the main plugin file is.
+    description: Relative path to where the main plugin file is.
     required: false
   build_dirs:
     description: Comma separated list of folders to include in distribution.
     required: false
-  switch:
-    description: Use --readme-only or --dry-run
+  switches:
+    description: Use --readme-only and/or --dry-run
     required: false
 
 runs:
-  using: "docker"
-  image: "Dockerfile"
-  args:
-    - --svn-user=${{ inputs.svn_user }}
-    - --svn-pass=${{ inputs.svn_pass }}
-    - --version=${{ inputs.version }}
-    - --build-dirs=${{ inputs.build_dirs }}
-    - --workdir=${{ inputs.workdir }}
-    - ${{ inputs.switch }}
-
-
+  using: 'composite'
+  steps:
+    - id: deploy
+      run: >
+        ${{ github.action_path }}/wp-plugin-deploy
+        --workdir=${{ inputs.workdir }}
+        --build-dirs=${{ inputs.build_dirs }}
+        --version=${{ inputs.version }}
+        --svn-user=${{ inputs.svn_user }}
+        --svn-pass=${{ inputs.svn_pass }}
+        ${{ inputs.switches }}
+      shell: bash
