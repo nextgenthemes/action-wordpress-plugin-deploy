@@ -4,7 +4,7 @@
 
 This Action commits the contents of your Git tag to the WordPress.org plugin repository using the same tag name. It can exclude files as defined in either or `.gitattributes`, and moves anything from a `.wordpress-org` subdirectory to the top-level `assets` directory in Subversion (plugin banners, icons, and screenshots).
 
-This is based on [https://github.com/10up/action-wordpress-plugin-deploy](10up/action-wordpress-plugin-deploy) but with a major difference. Its works **locally** and on Github actions.
+This is based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy) but with a major difference. Its works **locally** and on Github actions.
 
 One of the reasons I originally created this was the lack of the ability to run the action in a different directory. You can do that with `workdir`. I aim for simplicity.
 
@@ -18,11 +18,27 @@ It also supports monorepos or setups where your plugin is in a subdirectory of a
 
 [Secrets are set in your repository settings](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets). They cannot be viewed once stored.
 
+### Supported arguments
+
+See `inputs` in [action.yml](https://github.com/nextgenthemes/action-wordpress-plugin-deploy/blob/master/action.yml) for more details. Where does Github actually present those?
+
+```yaml
+- name: Deploy
+  uses: nextgenthemes/action-wordpress-plugin-deploy@stable
+  with:
+    workdir: your-plugin-slug
+    version: ${{ steps.get_version.outputs.VERSION }}
+    svn_user: ${{ secrets.SVN_USERNAME }}
+    svn_pass: ${{ secrets.SVN_PASSWORD }}
+    build_dirs: build, assets
+    switches: --dry-run --readme-only
+```
+
 ### Example run configuration ###
 
 1. This runs only if a previews run named `test` succeeded. And if the commit it an actual tag that does not have `alpha` in the tag.
-1. Key part on the checkout is you need to checkout inside a directory that is named after your plugin slug.
-1. The action 
+1. Key part on the checkout is you need to checkout inside a directory that is named after your plugin slug. Because that is how the action detects your plugin slug.
+1. The action needs a relative `workdir` to your plugins directory.
 
 ```yaml
   deploy:
@@ -43,7 +59,7 @@ It also supports monorepos or setups where your plugin is in a subdirectory of a
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Deploy
-        uses: nextgenthemes/action-wordpress-plugin-deploy@stable
+        uses: nextgenthemes/action-wordpress-plugin-deploy@master
         with:
           workdir: your-plugin-slug
           version: ${{ steps.get_version.outputs.VERSION }}
@@ -51,7 +67,7 @@ It also supports monorepos or setups where your plugin is in a subdirectory of a
           svn_pass: ${{ secrets.SVN_PASSWORD }}
 ```
 
-Lets say you have a monorepo or subdirectory git setup. Given a `plugins/your-plugin-slug` directory inside your git, you wound use no `path:` for the checkout and for the 'Deploy' `workdir` you would use `plugins/your-plugin-slug`.
+Lets say you have a monorepo or subdirectory git setup. Given a `plugins/your-plugin-slug` directory inside your git repo, you wound use no `path:` for the Checkout step and for the Deploy step `workdir` you would use `plugins/your-plugin-slug`.
 
 ## Running it locally
 
@@ -66,7 +82,7 @@ sudo apt install php-cli subversion rsync
 Download the script and make it executable.
 
 ```bash
-wget https://raw.githubusercontent.com/nextgenthemes/action-wordpress-plugin-deploy/master/wp-plugin-deploy --output-document=~/bin/
+wget --directory-prefix="$HOME"/bin/ https://raw.githubusercontent.com/nextgenthemes/action-wordpress-plugin-deploy/master/wp-plugin-deploy.php
 chmod +x ~/bin/wp-plugin-deploy
 ```
 
@@ -79,4 +95,4 @@ cd /path/to/your-plugin-slug
 wp-plugin-deploy --version=1.0.0
 ```
 
-It the output looks ok you can inspect your `/tmp/wp-deploy` directory and check of every
+You can use `--dry-run` and later inspect your `/tmp/wp-deploy` directory to see if everything is as expected.
