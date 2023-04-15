@@ -28,7 +28,7 @@ runs:
   steps:
     - id: deploy
       run: >
-        ${{ github.action_path }}/wp-plugin-deploy
+        ${{ github.action_path }}/wp-plugin-deploy.php
         --workdir=${{ inputs.workdir }}
         --build-dirs=${{ inputs.build_dirs }}
         --version=${{ inputs.version }}
