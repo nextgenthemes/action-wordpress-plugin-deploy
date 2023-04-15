@@ -19,7 +19,7 @@ inputs:
   build_dirs:
     description: Comma separated list of folders to include in distribution.
     required: false
-  switches:
+  switch:
     description: Use --readme-only and/or --dry-run
     required: false
 
