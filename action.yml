@@ -32,12 +32,6 @@ runs:
     - run: pwd
       shell: bash
 
-    - run: echo $GITHUB_WORKSPACE
-      shell: bash
-
-    - run: cd $GITHUB_WORKSPACE
-      shell: bash
-
-    - id: deploy
-      run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switches }}
+    - run: cat ${{ github.action_path }}/wp-plugin-deploy.php
+      #run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switches }}
       shell: bash
