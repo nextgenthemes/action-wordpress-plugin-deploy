@@ -7,8 +7,10 @@ branding:
 
 inputs:
   svn_user:
+    description: Should by added with Github secrets
     required: true
   svn_pass:
+    description: Should by added with Github secrets
     required: true
   version:
     description: Git tag you want to deploy, required unless you just update readme and assets
@@ -21,10 +23,13 @@ inputs:
     required: false
   readme-and-assets-only:
     required: false
+    type: boolean
   dry-run:
     required: false
+    type: boolean
   verbose:
     required: false
+    type: boolean
 
 runs:
   using: 'composite'

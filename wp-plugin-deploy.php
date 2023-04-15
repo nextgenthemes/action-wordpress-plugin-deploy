@@ -1,5 +1,5 @@
 #!/usr/bin/php
-<?php
+<?php declare(strict_types = 1);
 use function \escapeshellarg as e;
 exit_on_warnings();
 

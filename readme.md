@@ -31,7 +31,9 @@ See `inputs` in [action.yml](https://github.com/nextgenthemes/action-wordpress-p
     svn_user: ${{ secrets.SVN_USERNAME }}
     svn_pass: ${{ secrets.SVN_PASSWORD }}
     build_dirs: build, assets
-    switches: --dry-run --readme-only
+    readme-and-assets-only: false
+    dry-run: false
+    verbose: true
 ```
 
 ### Example run configuration ###
@@ -86,13 +88,13 @@ wget --output-document="$HOME"/bin/wp-plugin-deploy https://raw.githubuserconten
 chmod +x ~/bin/wp-plugin-deploy
 ```
 
-You now can release your plugin to wp.org directly. The plugin slug is taken from the directory name. This needs to be git versioned and the version you want to deploy needs to be tagged. This will do a `git achieve` for the `--version=` tag you feed to the script. This will **not** deploy the current files you have checked out. (except for `--readme-only`) Meaning you can be on `experimental-branch-xyz` working on a broken plugin as long as you correctly tagged a stable version in git previously you can release that version to wp.org without switching branches or checking out that tag.
+You now can release your plugin to wp.org directly. The plugin slug is taken from the directory name. This needs to be git versioned and the version you want to deploy needs to be tagged. This will do a `git achieve` for the `--version=` tag you feed to the script. This will **not** deploy the current files you have checked out. (except for `--readme-and-assets-only`) Meaning you can be on `experimental-branch-xyz` working on a broken plugin as long as you correctly tagged a stable version in git previously you can release that version to wp.org without switching branches or checking out that tag.
 
-If you do not supply --svn-user and --svn-pass you should be asked for your wp.org credentials and your OS may save them and may later be able deploy without a password or by only unlocking your OS password manager.
+If you do not supply --svn-user and --svn-pass (don't!) you should be asked for your wp.org credentials and your OS may save them and may later be able deploy without a password or by only unlocking your OS password manager.
 
 ```bash
 cd /path/to/your-plugin-slug
-wp-plugin-deploy --version=1.0.0
+wp-plugin-deploy --version=1.0.0 --verbose
 ```
 
-You can use `--dry-run` and later inspect your `/tmp/wp-deploy` directory to see if everything is as expected.
+You can use `--dry-run` and after the command has finished inspect your `/tmp/wp-deploy` directory to see if everything is as expected.
