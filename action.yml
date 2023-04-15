@@ -20,7 +20,7 @@ inputs:
     description: Comma separated list of folders to include in distribution.
     required: false
   switch:
-    description: Use --readme-only and/or --dry-run
+    description: Use --readme-assets-only and/or --dry-run
     required: false
 
 runs:
