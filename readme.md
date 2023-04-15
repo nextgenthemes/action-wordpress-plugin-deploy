@@ -82,13 +82,13 @@ sudo apt install php-cli subversion rsync
 Download the script and make it executable.
 
 ```bash
-wget --directory-prefix="$HOME"/bin/ https://raw.githubusercontent.com/nextgenthemes/action-wordpress-plugin-deploy/master/wp-plugin-deploy.php
+wget --output-document="$HOME"/bin/wp-plugin-deploy https://raw.githubusercontent.com/nextgenthemes/action-wordpress-plugin-deploy/master/wp-plugin-deploy.php
 chmod +x ~/bin/wp-plugin-deploy
 ```
 
-You now can release your plugin to wp.org directly. The plugin slug is taken from the directory name. This needs to be git versioned and the version you want to deploy needs to be tagged. This will do a `git achieve` for the `--version=` tag you feed to the script. This will **not** deploy the current files you have checked out. Meaning you can be on `experimental-branch-xyz` working on a broken plugin as long as you correctly tagged a stable version in git previously you can release that version to wp.org without switching branches or checking out that tag.
+You now can release your plugin to wp.org directly. The plugin slug is taken from the directory name. This needs to be git versioned and the version you want to deploy needs to be tagged. This will do a `git achieve` for the `--version=` tag you feed to the script. This will **not** deploy the current files you have checked out. (except for `--readme-only`) Meaning you can be on `experimental-branch-xyz` working on a broken plugin as long as you correctly tagged a stable version in git previously you can release that version to wp.org without switching branches or checking out that tag.
 
-If you do not supply --svn-user and --svn-pass (you should not) you should be asked for your wp.org credentials and your OS may save them and may later be able deploy without a password or by only unlocking your OS password manager.
+If you do not supply --svn-user and --svn-pass you should be asked for your wp.org credentials and your OS may save them and may later be able deploy without a password or by only unlocking your OS password manager.
 
 ```bash
 cd /path/to/your-plugin-slug
