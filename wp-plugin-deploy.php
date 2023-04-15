@@ -3,7 +3,8 @@
 use function \escapeshellarg as e;
 exit_on_warnings();
 
-$workdir = arg_with_default('workdir', false);
+$GLOBALS['verbose'] = has_arg('verbose');
+$workdir            = arg_with_default('workdir', false);
 
 if ( $workdir ) {
 	chdir( getcwd() . "/$workdir" );
@@ -13,53 +14,47 @@ if ( getenv( 'GITHUB_ACTION' ) ) {
 	sys('git config --global --add safe.directory ' . e( getcwd() ) );
 }
 
-$slug        = basename(getcwd());
-$plugin_dir  = getcwd();
-$git_dir     = sys('git rev-parse --show-toplevel');
-$subdir      = trim(str_replace($git_dir, '', getcwd()), '/');
-$svn_user    = arg_with_default('svn-user', false);
-$svn_pass    = arg_with_default('svn-pass', false);
-$build_dirs  = arg_with_default('build-dirs', false);
-$version     = arg_with_default('version', false);
-$svn_url     = "https://plugins.svn.wordpress.org/$slug/";
-$tmp_dir     = '/tmp/wp-deploy';
-$svn_dir     = "$tmp_dir/svn-$slug";
-$gitarch_dir = "$tmp_dir/git-archive-$slug";
-$readme_only = has_arg('readme-assets-only');
-$dry_run     = has_arg('dry-run');
+$slug             = basename(getcwd());
+$plugin_dir       = getcwd();
+$git_toplevel_dir = sys('git rev-parse --show-toplevel');
+$subdir           = trim(str_replace($git_toplevel_dir, '', getcwd()), '/');
+$svn_user         = arg_with_default('svn-user', false);
+$svn_pass         = arg_with_default('svn-pass', false);
+$build_dirs       = array_map( 'trim', explode(',', arg_with_default('build-dirs', '')) );
+$version          = arg_with_default('version', false);
+$svn_url          = "https://plugins.svn.wordpress.org/$slug/";
+$tmp_dir          = '/tmp/wp-deploy';
+$svn_dir          = "$tmp_dir/svn-$slug";
+$gitarch_dir      = "$tmp_dir/git-archive-$slug";
+$readme_only      = has_arg('readme-and-assets-only');
+$dry_run          = has_arg('dry-run');
 
 if ( $readme_only ) {
-	$commit_msg = 'Update readme and assets from current dir with automation script';
+	$commit_msg = 'Update readme and assets with NextgenThemes WordPress Plugin Deploy';
 } else {
 	$version    = required_arg('version');
-	$commit_msg = "Update to $version with automation script";
+	$commit_msg = "Update to $version with NextgenThemes WordPress Plugin Deploy";
 }
 
-if ( $build_dirs ) {
-	$build_dirs = array_map('trim', explode(',', $build_dirs));
+if ( $GLOBALS['verbose'] ) {
+	$defined_vars = get_defined_vars();
+	unset($defined_vars['argc']);
+	unset($defined_vars['_COOKIE']);
+	unset($defined_vars['_ENV']);
+	unset($defined_vars['_FILES']);
+	unset($defined_vars['_GET']);
+	unset($defined_vars['_POST']);
+	unset($defined_vars['_REQUEST']);
+	unset($defined_vars['_SERVER']);
+	var_export( $defined_vars );
 }
 
 sys('rm -rf ' . e($tmp_dir) );
 
-var_export(
-	compact(
-		'slug',
-		'git_dir',
-		'subdir',
-		'svn_url',
-		'build_dirs',
-		'tmp_dir',
-		'version',
-		'workdir',
-		'readme_only',
-		'dry_run'
-	)
-);
-
 # Checkout just trunk and assets for efficiency
 # Tagging will be handled on the SVN level
-echo '➤ Checking out wp.org repository...';
-sys( 'svn checkout --depth immediates ' . e($svn_url) . ' ' . e($svn_dir) );
+echo '➤ Checking out wp.org repository...' . PHP_EOL;
+sys( sprintf( 'svn checkout --depth immediates %s %s', e($svn_url), e($svn_dir) ) );
 
 chdir($svn_dir);
 sys('svn update --set-depth infinity assets');
@@ -74,10 +69,18 @@ if ( $readme_only ) {
 	copy( "$plugin_dir/readme.txt", "$svn_dir/trunk/readme.txt" );
 } else {
 	mkdir($gitarch_dir);
-	sys('git --git-dir='.e("$git_dir/.git").' archive '.e("$version:$subdir").' | tar x --directory='.e($gitarch_dir));
+	sys(
+		sprintf(
+			'git --git-dir=%s archive %s | tar x --directory=%s',
+			e("$git_toplevel_dir/.git"),
+			e("$version:$subdir"),
+			e($gitarch_dir)
+		)
+	);
 	sys('rsync -rc '.e("$gitarch_dir/").' '.e("$svn_dir/trunk").' --delete --delete-excluded');
 
 	foreach ( $build_dirs as $build_dir ) {
+
 		if ( ! file_exists( "$plugin_dir/$build_dir" ) ) {
 			echo 'Build dir '.e("$plugin_dir/$build_dir").' does not exists.' . PHP_EOL;
 			exit(1);
@@ -191,15 +194,18 @@ function arg_with_default( string $arg, $default ) {
 	return $getopt[ $arg ];
 }
 
-function sys( string $command, array $args = [] ): ?string {
+function sys( string $command, array $args = [] ): string {
 
 	foreach ( $args as $k => $v ) {
 		$command .= " --$k=" . escapeshellarg($v);
 	}
 
-	echo "Executing: $command" . PHP_EOL;
-	$out = system( $command, $exit_code );
-	echo $out . PHP_EOL;
+	if ( $GLOBALS['verbose'] ) {
+		echo "Executing: $command" . PHP_EOL;
+		$out = system( $command, $exit_code );
+	} else {
+		$out = exec( $command, $exec_output, $exit_code );
+	}
 
 	if ( 0 !== $exit_code || false === $out ) {
 		echo "Exit Code: $exit_code" . PHP_EOL;
@@ -209,10 +215,8 @@ function sys( string $command, array $args = [] ): ?string {
 	return $out;
 }
 
-
 function exit_on_warnings() {
 
-	// https://stackoverflow.com/a/44243526/2847723
 	set_error_handler(
 		function($err_no, $err_str, $err_file, $err_line) {
 			$error_type_str = 'Error';

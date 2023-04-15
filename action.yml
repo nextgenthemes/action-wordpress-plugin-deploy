@@ -19,20 +19,12 @@ inputs:
   build_dirs:
     description: Comma separated list of folders to include in distribution.
     required: false
-  switch:
-    description: Use --readme-assets-only and/or --dry-run
+  readme-and-assets-only:
     required: false
-
-# runs:
-#   using: "docker"
-#   image: "Dockerfile"
-#   args:
-#     - --svn-user=${{ inputs.svn_user }}
-#     - --svn-pass=${{ inputs.svn_pass }}
-#     - --version=${{ inputs.version }}
-#     - --build-dirs=${{ inputs.build_dirs }}
-#     - --workdir=${{ inputs.workdir }}
-#     - ${{ inputs.switch }}
+  dry-run:
+    required: false
+  verbose:
+    required: false
 
 runs:
   using: 'composite'
@@ -43,12 +35,15 @@ runs:
     - run: pwd
       shell: bash
 
+    # https://github.com/actions/runner/issues/2238
     - run: >
         ${{ github.action_path }}/wp-plugin-deploy.php
-        --workdir="${{ inputs.workdir }}"
-        --build-dirs="${{ inputs.build_dirs }}"
-        --version="${{ inputs.version }}"
-        --svn-user="${{ inputs.svn_user }}"
-        --svn-pass="${{ inputs.svn_pass }}"
-        ${{ inputs.switch }}
+        --workdir='${{ inputs.workdir }}'
+        --build-dirs='${{ inputs.build_dirs }}'
+        --version='${{ inputs.version }}'
+        --svn-user='${{ inputs.svn_user }}'
+        --svn-pass='${{ inputs.svn_pass }}'
+        ${{ ( inputs.readme-and-assets-only == 'true' || inputs.readme-and-assets-only ) && '--readme-and-assets-only' }}
+        ${{ ( inputs.dry-run == 'true' || inputs.dry-run ) && '--dry-run' }}
+        ${{ ( inputs.verbose == 'true' || inputs.verbose ) && '--verbose' }}
       shell: bash
