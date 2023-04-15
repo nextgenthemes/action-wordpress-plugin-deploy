@@ -26,6 +26,9 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - run: php --version
+      shell: bash
+
     - id: deploy
       run: >
         php ${{ github.action_path }}/wp-plugin-deploy.php
