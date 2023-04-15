@@ -23,25 +23,25 @@ inputs:
     description: Use --readme-assets-only and/or --dry-run
     required: false
 
-runs:
-  using: "docker"
-  image: "Dockerfile"
-  args:
-    - --svn-user=${{ inputs.svn_user }}
-    - --svn-pass=${{ inputs.svn_pass }}
-    - --version=${{ inputs.version }}
-    - --build-dirs=${{ inputs.build_dirs }}
-    - --workdir=${{ inputs.workdir }}
-    - ${{ inputs.switch }}
-
 # runs:
-#   using: 'composite'
-#   steps:
-#     - run: php --version
-#       shell: bash
+#   using: "docker"
+#   image: "Dockerfile"
+#   args:
+#     - --svn-user=${{ inputs.svn_user }}
+#     - --svn-pass=${{ inputs.svn_pass }}
+#     - --version=${{ inputs.version }}
+#     - --build-dirs=${{ inputs.build_dirs }}
+#     - --workdir=${{ inputs.workdir }}
+#     - ${{ inputs.switch }}
 
-#     - run: pwd
-#       shell: bash
+runs:
+  using: 'composite'
+  steps:
+    - run: php --version
+      shell: bash
 
-#     - run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switches }}
-#       shell: bash
+    - run: pwd
+      shell: bash
+
+    - run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switch }}
+      shell: bash
