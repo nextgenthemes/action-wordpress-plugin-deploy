@@ -1,11 +1,12 @@
 #!/usr/bin/php
 <?php
 use function \escapeshellarg as e;
+exit_on_warnings();
 
 $workdir = arg_with_default('workdir', false);
 
 if ( $workdir ) {
-	chdir( getcwd() . "/$workdir");
+	chdir( getcwd() . "/$workdir" );
 }
 
 if ( getenv( 'GITHUB_ACTION' ) ) {
@@ -43,7 +44,6 @@ sys('rm -rf ' . e($tmp_dir) );
 var_export(
 	compact(
 		'slug',
-		'cwd',
 		'git_dir',
 		'subdir',
 		'svn_url',
@@ -208,3 +208,58 @@ function sys( string $command, array $args = [] ): ?string {
 
 	return $out;
 }
+
+
+function exit_on_warnings() {
+
+	// https://stackoverflow.com/a/44243526/2847723
+	set_error_handler(
+		function($err_no, $err_str, $err_file, $err_line) {
+			$error_type_str = 'Error';
+			// Source of the switch logic: default error handler in PHP's main.c
+			switch ($err_no) {
+				case E_ERROR:
+				case E_CORE_ERROR:
+				case E_COMPILE_ERROR:
+				case E_USER_ERROR:
+					$error_type_str = 'Fatal error';
+					break;
+				case E_RECOVERABLE_ERROR:
+					$error_type_str = 'Recoverable fatal error';
+					break;
+				case E_WARNING:
+				case E_CORE_WARNING:
+				case E_COMPILE_WARNING:
+				case E_USER_WARNING:
+					$error_type_str = 'Warning';
+					break;
+				case E_PARSE:
+					$error_type_str = 'Parse error';
+					break;
+				case E_NOTICE:
+				case E_USER_NOTICE:
+					$error_type_str = 'Notice';
+					break;
+				case E_STRICT:
+					$error_type_str = 'Strict Standards';
+					break;
+				case E_DEPRECATED:
+				case E_USER_DEPRECATED:
+					$error_type_str = 'Deprecated';
+					break;
+				default:
+					$error_type_str = 'Unknown error';
+					break;
+			}
+
+			if ( 'Warning' === $error_type_str ) {
+				fwrite(STDERR, "PHP $error_type_str:  $err_str in $err_file on line $err_line\n");
+				exit(1);
+			}
+
+			return false;
+		},
+		E_ALL
+	);
+}
+

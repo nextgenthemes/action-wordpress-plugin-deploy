@@ -29,25 +29,15 @@ runs:
     - run: php --version
       shell: bash
 
-    # - run: ${{ github.action_path }}/wtf.sh
-    #   shell: bash
-
-    - run: ${{ github.action_path }}/wtf.php
+    - run: pwd
       shell: bash
 
-    - run: php ${{ github.action_path }}/wtf.php
+    - run: echo $GITHUB_WORKSPACE
       shell: bash
 
-    - run: ${{ github.action_path }}/wtf.php
-      shell: php
+    - run: cd $GITHUB_WORKSPACE
+      shell: bash
 
     - id: deploy
-      run: >
-        php ${{ github.action_path }}/wp-plugin-deploy.php
-        --workdir=${{ inputs.workdir }}
-        --build-dirs=${{ inputs.build_dirs }}
-        --version=${{ inputs.version }}
-        --svn-user=${{ inputs.svn_user }}
-        --svn-pass=${{ inputs.svn_pass }}
-        ${{ inputs.switches }}
+      run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switches }}
       shell: bash
