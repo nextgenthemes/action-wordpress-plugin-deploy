@@ -29,6 +29,18 @@ runs:
     - run: php --version
       shell: bash
 
+    - run: ${{ github.action_path }}/wtf.sh
+      shell: bash
+
+    - run: ${{ github.action_path }}/wtf.php
+      shell: bash
+
+    - run: php ${{ github.action_path }}/wtf.php
+      shell: bash
+
+    - run: ${{ github.action_path }}/wtf.php
+      shell: php
+
     - id: deploy
       run: >
         php ${{ github.action_path }}/wp-plugin-deploy.php
