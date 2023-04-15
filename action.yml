@@ -43,5 +43,12 @@ runs:
     - run: pwd
       shell: bash
 
-    - run: ${{ github.action_path }}/wp-plugin-deploy.php --workdir=${{ inputs.workdir }} --build-dirs=${{ inputs.build_dirs }} --version=${{ inputs.version }} --svn-user=${{ inputs.svn_user }} --svn-pass=${{ inputs.svn_pass }} ${{ inputs.switch }}
+    - run: >
+        ${{ github.action_path }}/wp-plugin-deploy.php
+        --workdir="${{ inputs.workdir }}"
+        --build-dirs="${{ inputs.build_dirs }}"
+        --version="${{ inputs.version }}"
+        --svn-user="${{ inputs.svn_user }}"
+        --svn-pass="${{ inputs.svn_pass }}"
+        ${{ inputs.switch }}
       shell: bash
