@@ -29,8 +29,8 @@ runs:
     - run: php --version
       shell: bash
 
-    - run: ${{ github.action_path }}/wtf.sh
-      shell: bash
+    # - run: ${{ github.action_path }}/wtf.sh
+    #   shell: bash
 
     - run: ${{ github.action_path }}/wtf.php
       shell: bash
