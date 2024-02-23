@@ -107,8 +107,6 @@ if ( ! $readme_only ) {
 	sys('svn cp trunk ' . e("tags/$version"));
 }
 
-# Fix screenshots getting force downloaded when clicking them
-# https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/
 fix_screenshots();
 
 sys('svn status');
@@ -125,7 +123,7 @@ sys($commit_cmd);
 
 echo '✓ Plugin deployed!';
 
-function get_stable_tag_from_readme( string $readme_file ) {
+function get_stable_tag_from_readme( string $readme_file ): string {
 
 	if ( ! is_file( $readme_file ) ) {
 		echo 'No readme.txt found'. PHP_EOL;
@@ -151,7 +149,13 @@ function get_stable_tag_from_readme( string $readme_file ) {
 	return $matches['stable_tag'];
 }
 
-function fix_screenshots() {
+/**
+ * Fix the MIME type of image files in the assets directory based on file extension. This prevents forced download
+ * force downloaded when clicking them on wp.org
+ *
+ * @link https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/
+ */
+function fix_screenshots(): void {
 	if ( count(glob('assets/*.png')) > 0 ) {
 		system('svn propset svn:mime-type image/png assets/*.png');
 	}
@@ -166,11 +170,24 @@ function fix_screenshots() {
 	}
 }
 
+/**
+ * Check if the specified argument is present in the command line arguments.
+ *
+ * @param string $arg The argument to check for in the command line arguments.
+ * @return bool True if the argument is present, false otherwise.
+ */
 function has_arg( string $arg ): bool {
 	$getopt = getopt( '', [ $arg ] );
 	return isset($getopt[ $arg ]);
 }
 
+/**
+ * Validates and returns the value of the required argument.
+ *
+ * @param string $arg The name of the required argument.
+ * @throws Exception If the required argument is not provided.
+ * @return string The value of the required argument.
+ */
 function required_arg( string $arg ): string {
 
 	$getopt = getopt( '', [ "$arg:" ] );
@@ -183,7 +200,14 @@ function required_arg( string $arg ): string {
 	return $getopt[ $arg ];
 }
 
-function arg_with_default( string $arg, $default ) {
+/**
+ * A function that retrieves the value of a specified command-line argument, with a default value if the argument is not provided.
+ *
+ * @param string $arg The name of the command-line argument to retrieve.
+ * @param mixed $default The default value to return if the command-line argument is not provided.
+ * @return mixed The value of the specified command-line argument, or the default value if the argument is not provided.
+ */
+function arg_with_default( string $arg, mixed $default ): mixed {
 
 	$getopt = getopt( '', [ "$arg::" ] );
 
@@ -194,6 +218,14 @@ function arg_with_default( string $arg, $default ) {
 	return $getopt[ $arg ];
 }
 
+/**
+ * Executes a system command with optional arguments and returns the output.
+ *
+ * @param string $command The system command to execute
+ * @param array $args An associative array of optional command arguments
+ *
+ * @return string The output of the system command
+ */
 function sys( string $command, array $args = [] ): string {
 
 	foreach ( $args as $k => $v ) {
@@ -215,13 +247,19 @@ function sys( string $command, array $args = [] ): string {
 	return $out;
 }
 
-function exit_on_warnings() {
+/**
+ * Sets up a custom error handler to exit the script on warnings and fatal errors.
+ *
+ * @throws void This function does not throw any exceptions.
+ * @return void This function does not return any value.
+ */
+function exit_on_warnings(): void {
 
 	set_error_handler(
-		function($err_no, $err_str, $err_file, $err_line) {
+		function( int $err_no, string $err_str, string $err_file, int $err_line ): bool {
 			$error_type_str = 'Error';
 			// Source of the switch logic: default error handler in PHP's main.c
-			switch ($err_no) {
+			switch ( $err_no ) {
 				case E_ERROR:
 				case E_CORE_ERROR:
 				case E_COMPILE_ERROR:
