@@ -141,7 +141,7 @@ class Deploy {
 
 		if ( $this->dry_run ) {
 			echo '➤ Dry run exit' . PHP_EOL;
-			exit(1);
+			exit(0);
 		}
 
 		# Commit to SVN
