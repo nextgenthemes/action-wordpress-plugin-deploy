@@ -33,6 +33,7 @@ class Deploy {
 
 	public function __construct() {
 
+		$this->verbose = has_arg('verbose');
 		$this->workdir = arg_with_default('workdir', null);
 
 		if ( $this->workdir ) {
@@ -43,7 +44,6 @@ class Deploy {
 
 		$this->slug             = basename(getcwd());
 		$this->plugin_dir       = getcwd();
-		$this->verbose          = has_arg('verbose');
 		$this->git_toplevel_dir = $this->cmd('git rev-parse --show-toplevel');
 		$this->subdir           = trim(str_replace($this->git_toplevel_dir, '', getcwd()), '/');
 		$this->svn_user         = arg_with_default('svn-user', null);
