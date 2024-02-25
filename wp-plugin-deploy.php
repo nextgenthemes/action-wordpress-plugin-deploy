@@ -1,127 +1,188 @@
 #!/usr/bin/php
 <?php declare(strict_types = 1);
 use function \escapeshellarg as e;
+
 exit_on_warnings();
 
-$GLOBALS['verbose'] = has_arg('verbose');
-$workdir            = arg_with_default('workdir', false);
+( new Deploy() )->run();
 
-if ( $workdir ) {
-	chdir( getcwd() . "/$workdir" );
-}
+class Deploy {
+	private ?string $workdir;
+	private string $slug;
+	private string $plugin_dir;
+	private string $git_toplevel_dir;
 
-if ( getenv( 'GITHUB_ACTION' ) ) {
-	sys('git config --global --add safe.directory ' . e( getcwd() ) );
-}
+	/**
+	 * relative path from $git_toplevel_dir to $plugin_dir
+	 *
+	 * @var string
+	 */
+	private string $subdir;
+	private ?string $svn_user;
+	private ?string $svn_pass;
+	private array $build_dirs;
+	private ?string $version;
+	private string $svn_url;
+	private string $tmp_dir = '/tmp/wp-deploy';
+	private string $svn_dir;
+	private string $gitarch_dir;
+	private bool $readme_only;
+	private bool $dry_run;
+	private bool $verbose;
+	private string $commit_msg;
 
-$slug             = basename(getcwd());
-$plugin_dir       = getcwd();
-$git_toplevel_dir = sys('git rev-parse --show-toplevel');
-$subdir           = trim(str_replace($git_toplevel_dir, '', getcwd()), '/');
-$svn_user         = arg_with_default('svn-user', false);
-$svn_pass         = arg_with_default('svn-pass', false);
-$build_dirs       = array_map( 'trim', explode(',', arg_with_default('build-dirs', '')) );
-$version          = arg_with_default('version', false);
-$svn_url          = "https://plugins.svn.wordpress.org/$slug/";
-$tmp_dir          = '/tmp/wp-deploy';
-$svn_dir          = "$tmp_dir/svn-$slug";
-$gitarch_dir      = "$tmp_dir/git-archive-$slug";
-$readme_only      = has_arg('readme-and-assets-only');
-$dry_run          = has_arg('dry-run');
+	public function __construct() {
 
-if ( $readme_only ) {
-	$commit_msg = 'Update readme and assets with NextgenThemes WordPress Plugin Deploy';
-} else {
-	$version    = required_arg('version');
-	$commit_msg = "Update to $version with NextgenThemes WordPress Plugin Deploy";
-}
+		$this->workdir = arg_with_default('workdir', null);
 
-if ( $GLOBALS['verbose'] ) {
-	$defined_vars = get_defined_vars();
-	unset($defined_vars['argc']);
-	unset($defined_vars['_COOKIE']);
-	unset($defined_vars['_ENV']);
-	unset($defined_vars['_FILES']);
-	unset($defined_vars['_GET']);
-	unset($defined_vars['_POST']);
-	unset($defined_vars['_REQUEST']);
-	unset($defined_vars['_SERVER']);
-	var_export( $defined_vars );
-}
+		if ( $this->workdir ) {
+			chdir( getcwd() . "/$this->workdir" );
+		}
 
-sys('rm -rf ' . e($tmp_dir) );
+		$this->fix_github_action_git_config();
 
-# Checkout just trunk and assets for efficiency
-# Tagging will be handled on the SVN level
-echo '➤ Checking out wp.org repository...' . PHP_EOL;
-sys( sprintf( 'svn checkout --depth immediates %s %s', e($svn_url), e($svn_dir) ) );
+		$this->slug             = basename(getcwd());
+		$this->plugin_dir       = getcwd();
+		$this->verbose          = has_arg('verbose');
+		$this->git_toplevel_dir = $this->cmd('git rev-parse --show-toplevel');
+		$this->subdir           = trim(str_replace($this->git_toplevel_dir, '', getcwd()), '/');
+		$this->svn_user         = arg_with_default('svn-user', null);
+		$this->svn_pass         = arg_with_default('svn-pass', null);
+		$this->build_dirs       = array_map('trim', explode(',', arg_with_default('build-dirs', '')));
+		$this->version          = arg_with_default('version', null);
+		$this->svn_url          = "https://plugins.svn.wordpress.org/{$this->slug}/";
+		$this->svn_dir          = "{$this->tmp_dir}/svn-{$this->slug}";
+		$this->gitarch_dir      = "{$this->tmp_dir}/git-archive-{$this->slug}";
+		$this->readme_only      = has_arg('readme-and-assets-only');
+		$this->dry_run          = has_arg('dry-run');
 
-chdir($svn_dir);
-sys('svn update --set-depth infinity assets');
-sys('svn update --set-depth infinity trunk');
+		if ( $this->readme_only ) {
+			$this->commit_msg = 'Update readme and assets with NextgenThemes WordPress Plugin Deploy';
+		} else {
+			$this->version    = required_arg('version');
+			$this->commit_msg = "Update plugin to version {$this->version} with NextgenThemes WordPress Plugin Deploy";
+		}
 
-echo '➤ Copying files...' . PHP_EOL;
+		if ( $this->verbose ) {
+			var_export(get_object_vars($this));
+		}
+	}
 
-if ( $readme_only ) {
-	$stable_tag = get_stable_tag_from_readme( "$plugin_dir/readme.txt" );
-	sys('svn update --set-depth immediates '.e("$svn_dir/tags/$stable_tag"));
-	copy( "$plugin_dir/readme.txt", "$svn_dir/tags/$stable_tag/readme.txt" );
-	copy( "$plugin_dir/readme.txt", "$svn_dir/trunk/readme.txt" );
-} else {
-	mkdir($gitarch_dir);
-	sys(
-		sprintf(
-			'git --git-dir=%s archive %s | tar x --directory=%s',
-			e("$git_toplevel_dir/.git"),
-			e("$version:$subdir"),
-			e($gitarch_dir)
-		)
-	);
-	sys('rsync -rc '.e("$gitarch_dir/").' '.e("$svn_dir/trunk").' --delete --delete-excluded');
+	private function fix_github_action_git_config(): void {
+		if ( getenv( 'GITHUB_ACTION' ) ) {
+			$this->cmd('git config --global --add safe.directory ' . e( getcwd() ) );
+		}
+	}
 
-	foreach ( $build_dirs as $build_dir ) {
+	public function run(): void {
 
-		if ( ! file_exists( "$plugin_dir/$build_dir" ) ) {
-			echo 'Build dir '.e("$plugin_dir/$build_dir").' does not exists.' . PHP_EOL;
+		// remove temp dir if exists
+		$this->cmd('rm -rf ' . e($this->tmp_dir) );
+
+		# Checkout just trunk and assets for efficiency
+		# Tagging will be handled on the SVN level
+		echo '➤ Checking out wp.org repository...' . PHP_EOL;
+		$this->cmd( sprintf( 'svn checkout --depth immediates %s %s', e($this->svn_url), e($this->svn_dir) ) );
+
+		chdir($this->svn_dir);
+		$this->cmd('svn update --set-depth infinity assets');
+		$this->cmd('svn update --set-depth infinity trunk');
+
+		echo '➤ Copying files...' . PHP_EOL;
+
+		if ( $this->readme_only ) {
+			$stable_tag = get_stable_tag_from_readme( "$this->plugin_dir/readme.txt" );
+			$this->cmd('svn update --set-depth immediates '.e("{$this->svn_dir}/tags/$stable_tag"));
+			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/tags/$stable_tag/readme.txt" );
+			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/trunk/readme.txt" );
+		} else {
+			mkdir($this->gitarch_dir);
+			$this->cmd(
+				sprintf(
+					'git --git-dir=%s archive %s | tar x --directory=%s',
+					e("$this->git_toplevel_dir/.git"),
+					e("{$this->version}:{$this->subdir}"),
+					e($this->gitarch_dir)
+				)
+			);
+			$this->cmd('rsync -rc '.e("$this->gitarch_dir/").' '.e("$this->svn_dir/trunk").' --delete --delete-excluded');
+
+			foreach ( $this->build_dirs as $build_dir ) {
+
+				if ( ! file_exists( "$this->plugin_dir/$build_dir" ) ) {
+					echo 'Build dir '.e("$this->plugin_dir/$build_dir").' does not exists.' . PHP_EOL;
+					exit(1);
+				}
+
+				$this->cmd('rsync -rc '.e("$this->plugin_dir/$build_dir").' '.e("$this->svn_dir/trunk/").' --delete');
+			}
+		}
+
+		$this->cmd('rsync -rc '.e("$this->plugin_dir/.wordpress-org/").' '.e("$this->svn_dir/assets").' --delete');
+
+		# Add everything and commit to SVN
+		# The force flag ensures we recurse into subdirectories even if they are already added
+		echo '➤ Preparing files...' . PHP_EOL;
+		$this->cmd('svn add . --force --quiet');
+
+		# SVN delete all deleted files
+		# Also suppress stdout here
+		$this->cmd("svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ --quiet");
+
+		# Copy tag locally to make this a single commit
+		if ( ! $this->readme_only ) {
+			echo '➤ Copying tag...' . PHP_EOL;
+			$this->cmd('svn cp trunk ' . e("tags/$this->version"));
+		}
+
+		fix_screenshots();
+
+		$this->cmd('svn status');
+
+		if ( $this->dry_run ) {
+			echo '➤ Dry run exit' . PHP_EOL;
 			exit(1);
 		}
 
-		sys('rsync -rc '.e("$plugin_dir/$build_dir").' '.e("$svn_dir/trunk/").' --delete');
+		# Commit to SVN
+		$commit_cmd = 'svn commit -m '.e($this->commit_msg).' ';
+		if ( $this->svn_user && $this->svn_pass ) {
+			$commit_cmd .= ' --no-auth-cache --non-interactive --username '.e($this->svn_user).' --password '.e($this->svn_pass);
+		}
+		echo '➤ Committing files...' . PHP_EOL;
+		$this->cmd($commit_cmd);
+
+		echo '✓ Plugin deployed!';
+	}
+
+	/**
+	 * Executes a system command with optional arguments.
+	 *
+	 * @param string $command The system command to execute
+	 * @param array $args An associative array of optional --arg="x" command arguments
+	 * @return string The output of the system command
+	 */
+	private function cmd( string $command, array $args = [] ): string {
+
+		foreach ( $args as $k => $v ) {
+			$command .= " --$k=" . escapeshellarg($v);
+		}
+
+		if ( $this->verbose ) {
+			echo "Executing: $command" . PHP_EOL;
+			$out = system( $command, $exit_code );
+		} else {
+			$out = exec( command: $command, result_code: $exit_code );
+		}
+
+		if ( 0 !== $exit_code || false === $out ) {
+			echo "Exit Code: $exit_code" . PHP_EOL;
+			exit($exit_code);
+		}
+
+		return $out;
 	}
 }
-
-sys('rsync -rc '.e("$plugin_dir/.wordpress-org/").' '.e("$svn_dir/assets").' --delete');
-
-# Add everything and commit to SVN
-# The force flag ensures we recurse into subdirectories even if they are already added
-echo '➤ Preparing files...' . PHP_EOL;
-sys('svn add . --force --quiet');
-
-# SVN delete all deleted files
-# Also suppress stdout here
-sys("svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ --quiet");
-
-# Copy tag locally to make this a single commit
-if ( ! $readme_only ) {
-	echo '➤ Copying tag...' . PHP_EOL;
-	sys('svn cp trunk ' . e("tags/$version"));
-}
-
-fix_screenshots();
-
-sys('svn status');
-if ( $dry_run ) {
-	echo '➤ Dry run exit' . PHP_EOL;
-	exit(1);
-}
-$commit_cmd = 'svn commit -m '.e($commit_msg).' ';
-if ( $svn_user && $svn_pass ) {
-	$commit_cmd .= ' --no-auth-cache --non-interactive --username '.e($svn_user).' --password '.e($svn_pass);
-}
-echo '➤ Committing files...' . PHP_EOL;
-sys($commit_cmd);
-
-echo '✓ Plugin deployed!';
 
 function get_stable_tag_from_readme( string $readme_file ): string {
 
@@ -216,35 +277,6 @@ function arg_with_default( string $arg, mixed $default ): mixed {
 	}
 
 	return $getopt[ $arg ];
-}
-
-/**
- * Executes a system command with optional arguments and returns the output.
- *
- * @param string $command The system command to execute
- * @param array $args An associative array of optional command arguments
- *
- * @return string The output of the system command
- */
-function sys( string $command, array $args = [] ): string {
-
-	foreach ( $args as $k => $v ) {
-		$command .= " --$k=" . escapeshellarg($v);
-	}
-
-	if ( $GLOBALS['verbose'] ) {
-		echo "Executing: $command" . PHP_EOL;
-		$out = system( $command, $exit_code );
-	} else {
-		$out = exec( $command, $exec_output, $exit_code );
-	}
-
-	if ( 0 !== $exit_code || false === $out ) {
-		echo "Exit Code: $exit_code" . PHP_EOL;
-		exit($exit_code);
-	}
-
-	return $out;
 }
 
 /**
