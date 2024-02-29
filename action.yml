@@ -48,7 +48,7 @@ runs:
         --version='${{ inputs.version }}'
         --svn-user='${{ inputs.svn_user }}'
         --svn-pass='${{ inputs.svn_pass }}'
-        ${{ ( inputs.readme-and-assets-only == 'true' || inputs.readme-and-assets-only ) && '--readme-and-assets-only' }}
-        ${{ ( inputs.dry-run == 'true' || inputs.dry-run ) && '--dry-run' }}
-        ${{ ( inputs.verbose == 'true' || inputs.verbose ) && '--verbose' }}
+        ${{ ( inputs.readme-and-assets-only && inputs.readme-and-assets-only != 'false' ) && '--readme-and-assets-only' }}
+        ${{ ( inputs.verbose && inputs.verbose != 'false' ) && '--verbose' }}
+        ${{ ( inputs.dry-run && inputs.dry-run != 'false' ) && '--dry-run' }}
       shell: bash
