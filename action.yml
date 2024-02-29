@@ -22,14 +22,14 @@ inputs:
     description: Comma separated list of folders to include in distribution.
     required: false
   readme-and-assets-only:
+    description: Only update readme and assets, boolean
     required: false
-    type: boolean
   dry-run:
+    description: Exit before committing to SVN, boolean
     required: false
-    type: boolean
   verbose:
+    description: Verbose output, boolean
     required: false
-    type: boolean
 
 runs:
   using: 'composite'

@@ -1,6 +1,9 @@
 #!/usr/bin/php
 <?php declare(strict_types = 1);
-use function \escapeshellarg as e;
+use function escapeshellarg as e;
+// phpcs:disable WordPress.WP.AlternativeFunctions
+// Allow functions and class in the same file
+// phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed
 
 exit_on_warnings();
 
@@ -101,7 +104,7 @@ class Deploy {
 				sprintf(
 					'git --git-dir=%s archive %s | tar x --directory=%s',
 					e("$this->git_toplevel_dir/.git"),
-					e("{$this->version}:{$this->subdir}"),
+					e($this->version . ':' . $this->subdir),
 					e($this->gitarch_dir)
 				)
 			);
@@ -162,7 +165,7 @@ class Deploy {
 	 * @param array $args An associative array of optional --arg="x" command arguments
 	 * @return string The output of the system command
 	 */
-	private function cmd( string $command, array $args = [] ): string {
+	private function cmd( string $command, array $args = array() ): string {
 
 		foreach ( $args as $k => $v ) {
 			$command .= " --$k=" . escapeshellarg($v);
@@ -238,7 +241,7 @@ function fix_screenshots(): void {
  * @return bool True if the argument is present, false otherwise.
  */
 function has_arg( string $arg ): bool {
-	$getopt = getopt( '', [ $arg ] );
+	$getopt = getopt( '', array( $arg ) );
 	return isset($getopt[ $arg ]);
 }
 
@@ -251,7 +254,7 @@ function has_arg( string $arg ): bool {
  */
 function required_arg( string $arg ): string {
 
-	$getopt = getopt( '', [ "$arg:" ] );
+	$getopt = getopt( '', array( "$arg:" ) );
 
 	if ( empty($getopt[ $arg ]) ) {
 		echo "need --$arg=x";
@@ -265,15 +268,15 @@ function required_arg( string $arg ): string {
  * A function that retrieves the value of a specified command-line argument, with a default value if the argument is not provided.
  *
  * @param string $arg The name of the command-line argument to retrieve.
- * @param mixed $default The default value to return if the command-line argument is not provided.
+ * @param mixed $default_value The default value to return if the command-line argument is not provided.
  * @return mixed The value of the specified command-line argument, or the default value if the argument is not provided.
  */
-function arg_with_default( string $arg, mixed $default ): mixed {
+function arg_with_default( string $arg, mixed $default_value ): mixed {
 
-	$getopt = getopt( '', [ "$arg::" ] );
+	$getopt = getopt( '', array( "$arg::" ) );
 
 	if ( empty($getopt[ $arg ]) ) {
-		return $default;
+		return $default_value;
 	}
 
 	return $getopt[ $arg ];
@@ -288,7 +291,7 @@ function arg_with_default( string $arg, mixed $default ): mixed {
 function exit_on_warnings(): void {
 
 	set_error_handler(
-		function( int $err_no, string $err_str, string $err_file, int $err_line ): bool {
+		function ( int $err_no, string $err_str, string $err_file, int $err_line ): bool {
 			$error_type_str = 'Error';
 			// Source of the switch logic: default error handler in PHP's main.c
 			switch ( $err_no ) {
@@ -336,4 +339,3 @@ function exit_on_warnings(): void {
 		E_ALL
 	);
 }
-
