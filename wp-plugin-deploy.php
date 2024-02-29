@@ -51,7 +51,7 @@ class Deploy {
 		$this->subdir           = trim(str_replace($this->git_toplevel_dir, '', getcwd()), '/');
 		$this->svn_user         = arg_with_default('svn-user', null);
 		$this->svn_pass         = arg_with_default('svn-pass', null);
-		$this->build_dirs       = array_map('trim', explode(',', arg_with_default('build-dirs', '')));
+		$this->build_dirs       = comma_separated_string_to_array( arg_with_default('build-dirs', '') );
 		$this->version          = arg_with_default('version', null);
 		$this->svn_url          = "https://plugins.svn.wordpress.org/{$this->slug}/";
 		$this->svn_dir          = "{$this->tmp_dir}/svn-{$this->slug}";
@@ -194,7 +194,6 @@ function get_stable_tag_from_readme( string $readme_file ): string {
 		exit(1);
 	}
 
-	// phpcs:disable WordPress.WP.AlternativeFunctions
 	$handle = fopen($readme_file, 'r');
 	$str    = fread($handle, 4096);
 	fclose($handle);
@@ -338,4 +337,16 @@ function exit_on_warnings(): void {
 		},
 		E_ALL
 	);
+}
+
+/**
+ * This PHP function takes a comma-separated string as input and converts it into an array.
+ * It removes any leading or trailing spaces from each element and filters out any empty
+ * elements from the resulting array.
+ *
+ * @param string $str The input comma-separated string
+ * @return array The resulting array
+ */
+function comma_separated_string_to_array( string $str ): array {
+	return array_filter(array_map('trim', explode(',', $str)), 'strlen');
 }
