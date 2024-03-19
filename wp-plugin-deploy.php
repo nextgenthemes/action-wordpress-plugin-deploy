@@ -348,5 +348,5 @@ function exit_on_warnings(): void {
  * @return array The resulting array
  */
 function comma_separated_string_to_array( string $str ): array {
-	return array_filter(array_map('trim', explode(',', $str)), 'strlen');
+	return array_unique(array_filter(array_map('trim', explode(',', $str)), 'strlen'));
 }
