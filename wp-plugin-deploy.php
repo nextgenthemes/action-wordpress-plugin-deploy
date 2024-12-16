@@ -1,5 +1,8 @@
 #!/usr/bin/php
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types = 1);
+
 use function escapeshellarg as e;
 // phpcs:disable WordPress.WP.AlternativeFunctions
 // Allow functions and class in the same file
@@ -36,8 +39,8 @@ class Deploy {
 
 	public function __construct() {
 
-		$this->verbose = has_arg('verbose');
-		$this->workdir = arg_with_default('workdir', null);
+		$this->verbose = has_arg( 'verbose' );
+		$this->workdir = arg_with_default( 'workdir', null );
 
 		if ( $this->workdir ) {
 			chdir( getcwd() . "/$this->workdir" );
@@ -45,115 +48,115 @@ class Deploy {
 
 		$this->fix_github_action_git_config();
 
-		$this->slug             = basename(getcwd());
+		$this->slug             = basename( getcwd() );
 		$this->plugin_dir       = getcwd();
-		$this->git_toplevel_dir = $this->cmd('git rev-parse --show-toplevel');
-		$this->subdir           = trim(str_replace($this->git_toplevel_dir, '', getcwd()), '/');
-		$this->svn_user         = arg_with_default('svn-user', null);
-		$this->svn_pass         = arg_with_default('svn-pass', null);
-		$this->build_dirs       = comma_separated_string_to_array( arg_with_default('build-dirs', '') );
-		$this->version          = arg_with_default('version', null);
+		$this->git_toplevel_dir = $this->cmd( 'git rev-parse --show-toplevel' );
+		$this->subdir           = trim( str_replace( $this->git_toplevel_dir, '', getcwd() ), '/' );
+		$this->svn_user         = arg_with_default( 'svn-user', null );
+		$this->svn_pass         = arg_with_default( 'svn-pass', null );
+		$this->build_dirs       = comma_separated_string_to_array( arg_with_default( 'build-dirs', '' ) );
+		$this->version          = arg_with_default( 'version', null );
 		$this->svn_url          = "https://plugins.svn.wordpress.org/{$this->slug}/";
 		$this->svn_dir          = "{$this->tmp_dir}/svn-{$this->slug}";
 		$this->gitarch_dir      = "{$this->tmp_dir}/git-archive-{$this->slug}";
-		$this->readme_only      = has_arg('readme-and-assets-only');
-		$this->dry_run          = has_arg('dry-run');
+		$this->readme_only      = has_arg( 'readme-and-assets-only' );
+		$this->dry_run          = has_arg( 'dry-run' );
 
 		if ( $this->readme_only ) {
 			$this->commit_msg = 'Update readme and assets with NextgenThemes WordPress Plugin Deploy';
 		} else {
-			$this->version    = required_arg('version');
+			$this->version    = required_arg( 'version' );
 			$this->commit_msg = "Update plugin to version {$this->version} with NextgenThemes WordPress Plugin Deploy";
 		}
 
 		if ( $this->verbose ) {
-			var_export(get_object_vars($this));
+			var_export( get_object_vars( $this ) );
 		}
 	}
 
 	private function fix_github_action_git_config(): void {
 		if ( getenv( 'GITHUB_ACTION' ) ) {
-			$this->cmd('git config --global --add safe.directory ' . e( getcwd() ) );
+			$this->cmd( 'git config --global --add safe.directory ' . e( getcwd() ) );
 		}
 	}
 
 	public function run(): void {
 
 		// remove temp dir if exists
-		$this->cmd('rm -rf ' . e($this->tmp_dir) );
+		$this->cmd( 'rm -rf ' . e( $this->tmp_dir ) );
 
 		# Checkout just trunk and assets for efficiency
 		# Tagging will be handled on the SVN level
 		echo '➤ Checking out wp.org repository...' . PHP_EOL;
-		$this->cmd( sprintf( 'svn checkout --depth immediates %s %s', e($this->svn_url), e($this->svn_dir) ) );
+		$this->cmd( sprintf( 'svn checkout --depth immediates %s %s', e( $this->svn_url ), e( $this->svn_dir ) ) );
 
-		chdir($this->svn_dir);
-		$this->cmd('svn update --set-depth infinity assets');
-		$this->cmd('svn update --set-depth infinity trunk');
+		chdir( $this->svn_dir );
+		$this->cmd( 'svn update --set-depth infinity assets' );
+		$this->cmd( 'svn update --set-depth infinity trunk' );
 
 		echo '➤ Copying files...' . PHP_EOL;
 
 		if ( $this->readme_only ) {
 			$stable_tag = get_stable_tag_from_readme( "$this->plugin_dir/readme.txt" );
-			$this->cmd('svn update --set-depth immediates '.e("{$this->svn_dir}/tags/$stable_tag"));
+			$this->cmd( 'svn update --set-depth immediates '.e( "{$this->svn_dir}/tags/$stable_tag" ) );
 			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/tags/$stable_tag/readme.txt" );
 			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/trunk/readme.txt" );
 		} else {
-			mkdir($this->gitarch_dir);
+			mkdir( $this->gitarch_dir );
 			$this->cmd(
 				sprintf(
 					'git --git-dir=%s archive %s | tar x --directory=%s',
-					e("$this->git_toplevel_dir/.git"),
-					e($this->version . ':' . $this->subdir),
-					e($this->gitarch_dir)
+					e( "$this->git_toplevel_dir/.git" ),
+					e( $this->version . ':' . $this->subdir ),
+					e( $this->gitarch_dir )
 				)
 			);
-			$this->cmd('rsync -rc '.e("$this->gitarch_dir/").' '.e("$this->svn_dir/trunk").' --delete --delete-excluded');
+			$this->cmd( 'rsync -rc '.e( "$this->gitarch_dir/" ).' '.e( "$this->svn_dir/trunk" ).' --delete --delete-excluded' );
 
 			foreach ( $this->build_dirs as $build_dir ) {
 
 				if ( ! file_exists( "$this->plugin_dir/$build_dir" ) ) {
-					echo 'Build dir '.e("$this->plugin_dir/$build_dir").' does not exists.' . PHP_EOL;
-					exit(1);
+					echo 'Build dir '.e( "$this->plugin_dir/$build_dir" ).' does not exists.' . PHP_EOL;
+					exit( 1 );
 				}
 
-				$this->cmd('rsync -rc '.e("$this->plugin_dir/$build_dir").' '.e("$this->svn_dir/trunk/").' --delete');
+				$this->cmd( 'rsync -rc '.e( "$this->plugin_dir/$build_dir" ).' '.e( "$this->svn_dir/trunk/" ).' --delete' );
 			}
 		}
 
-		$this->cmd('rsync -rc '.e("$this->plugin_dir/.wordpress-org/").' '.e("$this->svn_dir/assets").' --delete');
+		$this->cmd( 'rsync -rc '.e( "$this->plugin_dir/.wordpress-org/" ).' '.e( "$this->svn_dir/assets" ).' --delete' );
 
 		# Add everything and commit to SVN
 		# The force flag ensures we recurse into subdirectories even if they are already added
 		echo '➤ Preparing files...' . PHP_EOL;
-		$this->cmd('svn add . --force --quiet');
+		$this->cmd( 'svn add . --force --quiet' );
 
 		# SVN delete all deleted files
 		# Also suppress stdout here
-		$this->cmd("svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ --quiet");
+		$this->cmd( "svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ --quiet" );
 
 		# Copy tag locally to make this a single commit
 		if ( ! $this->readme_only ) {
 			echo '➤ Copying tag...' . PHP_EOL;
-			$this->cmd('svn cp trunk ' . e("tags/$this->version"));
+			$this->cmd( 'svn cp trunk ' . e( "tags/$this->version" ) );
 		}
 
 		fix_screenshots();
 
-		$this->cmd('svn status');
+		$this->cmd( 'svn status' );
 
 		if ( $this->dry_run ) {
 			echo '➤ Dry run exit' . PHP_EOL;
-			exit(0);
+			exit( 0 );
 		}
 
 		# Commit to SVN
-		$commit_cmd = 'svn commit -m '.e($this->commit_msg).' ';
+		$commit_cmd = 'svn commit -m '.e( $this->commit_msg ).' ';
 		if ( $this->svn_user && $this->svn_pass ) {
-			$commit_cmd .= ' --no-auth-cache --non-interactive --username '.e($this->svn_user).' --password '.e($this->svn_pass);
+			$commit_cmd .= ' --no-auth-cache --non-interactive --username '.e( $this->svn_user ).' --password '.e( $this->svn_pass );
 		}
 		echo '➤ Committing files...' . PHP_EOL;
-		$this->cmd($commit_cmd);
+		$this->cmd( $commit_cmd );
 
 		echo '✓ Plugin deployed!';
 	}
@@ -168,7 +171,7 @@ class Deploy {
 	private function cmd( string $command, array $args = array() ): string {
 
 		foreach ( $args as $k => $v ) {
-			$command .= " --$k=" . escapeshellarg($v);
+			$command .= " --$k=" . escapeshellarg( $v );
 		}
 
 		if ( $this->verbose ) {
@@ -180,7 +183,7 @@ class Deploy {
 
 		if ( 0 !== $exit_code || false === $out ) {
 			echo "Exit Code: $exit_code" . PHP_EOL;
-			exit($exit_code);
+			exit( $exit_code );
 		}
 
 		return $out;
@@ -191,20 +194,20 @@ function get_stable_tag_from_readme( string $readme_file ): string {
 
 	if ( ! is_file( $readme_file ) ) {
 		echo 'No readme.txt found'. PHP_EOL;
-		exit(1);
+		exit( 1 );
 	}
 
-	$handle = fopen($readme_file, 'r');
-	$str    = fread($handle, 4096);
-	fclose($handle);
+	$handle = fopen( $readme_file, 'r' );
+	$str    = fread( $handle, 4096 );
+	fclose( $handle );
 
 	$re = '/^([*+-]\s+)?Stable tag:[ ]*(?<stable_tag>[^\s]+)/m';
 
-	preg_match($re, $str, $matches);
+	preg_match( $re, $str, $matches );
 
 	if ( empty( $matches['stable_tag'] ) ) {
 		echo 'No stable tag found in readme'. PHP_EOL;
-		exit(1);
+		exit( 1 );
 	}
 
 	echo 'Detected Stable tag: ' . $matches['stable_tag'];
@@ -219,17 +222,17 @@ function get_stable_tag_from_readme( string $readme_file ): string {
  * @link https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/
  */
 function fix_screenshots(): void {
-	if ( count(glob('assets/*.png')) > 0 ) {
-		system('svn propset svn:mime-type image/png assets/*.png');
+	if ( count( glob( 'assets/*.png' ) ) > 0 ) {
+		system( 'svn propset svn:mime-type image/png assets/*.png' );
 	}
-	if ( count(glob('assets/*.jpg')) > 0 ) {
-		system('svn propset svn:mime-type image/jpeg assets/*.jpg');
+	if ( count( glob( 'assets/*.jpg' ) ) > 0 ) {
+		system( 'svn propset svn:mime-type image/jpeg assets/*.jpg' );
 	}
-	if ( count(glob('assets/*.gif')) > 0 ) {
-		system('svn propset svn:mime-type image/gif assets/*.gif');
+	if ( count( glob( 'assets/*.gif' ) ) > 0 ) {
+		system( 'svn propset svn:mime-type image/gif assets/*.gif' );
 	}
-	if ( count(glob('assets/*.svg')) > 0 ) {
-		system('svn propset svn:mime-type image/svg+xml assets/*.svg');
+	if ( count( glob( 'assets/*.svg' ) ) > 0 ) {
+		system( 'svn propset svn:mime-type image/svg+xml assets/*.svg' );
 	}
 }
 
@@ -241,7 +244,7 @@ function fix_screenshots(): void {
  */
 function has_arg( string $arg ): bool {
 	$getopt = getopt( '', array( $arg ) );
-	return isset($getopt[ $arg ]);
+	return isset( $getopt[ $arg ] );
 }
 
 /**
@@ -255,9 +258,9 @@ function required_arg( string $arg ): string {
 
 	$getopt = getopt( '', array( "$arg:" ) );
 
-	if ( empty($getopt[ $arg ]) ) {
+	if ( empty( $getopt[ $arg ] ) ) {
 		echo "need --$arg=x";
-		exit(1);
+		exit( 1 );
 	}
 
 	return $getopt[ $arg ];
@@ -274,7 +277,7 @@ function arg_with_default( string $arg, mixed $default_value ): mixed {
 
 	$getopt = getopt( '', array( "$arg::" ) );
 
-	if ( empty($getopt[ $arg ]) ) {
+	if ( empty( $getopt[ $arg ] ) ) {
 		return $default_value;
 	}
 
@@ -329,8 +332,8 @@ function exit_on_warnings(): void {
 			}
 
 			if ( 'Warning' === $error_type_str ) {
-				fwrite(STDERR, "PHP $error_type_str:  $err_str in $err_file on line $err_line\n");
-				exit(1);
+				fwrite( STDERR, "PHP $error_type_str:  $err_str in $err_file on line $err_line\n" );
+				exit( 1 );
 			}
 
 			return false;
