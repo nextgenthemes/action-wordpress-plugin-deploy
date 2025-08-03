@@ -7,10 +7,10 @@ branding:
 
 inputs:
   svn_user:
-    description: Should by added with Github secrets
+    description: Should be added with Github secrets
     required: true
   svn_pass:
-    description: Should by added with Github secrets
+    description: Should be added with Github secrets
     required: true
   version:
     description: Git tag you want to deploy, required unless you just update readme and assets
