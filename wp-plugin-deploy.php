@@ -343,21 +343,23 @@ function exit_on_warnings(): void {
 }
 
 /**
- * This PHP function takes a comma-separated string as input and converts it into an array.
- * It removes any leading or trailing spaces from each element and filters out any empty
- * elements from the resulting array.
+ * Takes a comma-separated string as input and converts it into an array.
+ * It removes any leading or trailing spaces from each element and filters out
+ * any empty elements from the resulting array.
  *
  * @param string $str The input comma-separated string
  * @return array The resulting array
  */
 function comma_separated_string_to_array( string $str ): array {
-	return array_unique(
-		array_filter(
-			array_map(
-				'trim',
-				explode( ',', $str )
-			),
-			'strlen'
-		)
-	);
+
+	// Trim spaces from each element
+	$ar = array_map( 'trim', explode( ',', $str ) );
+
+	// Filter out empty elements
+	$ar = array_filter( $ar, 'strlen' );
+
+	// Remove duplicate elements
+	$ar = array_unique( $ar );
+
+	return $ar;
 }
