@@ -38,6 +38,7 @@ inputs:
 outputs:
   zip-path:
     description: Path to the generated zip file
+    value: ${{ steps.deploy.outputs.zip-path }}
 
 runs:
   using: 'composite'
@@ -49,7 +50,8 @@ runs:
       shell: bash
 
     # https://github.com/actions/runner/issues/2238
-    - run: >
+    - id: deploy
+      run: >
         ${{ github.action_path }}/wp-plugin-deploy.php
         --workdir='${{ inputs.workdir }}'
         --build-dirs='${{ inputs.build_dirs }}'
