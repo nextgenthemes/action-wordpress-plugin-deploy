@@ -38,6 +38,7 @@ class Deploy {
 	private bool $readme_only;
 	private bool $dry_run;
 	private bool $verbose;
+	private bool $generate_zip;
 	private string $commit_msg;
 
 	public function __construct() {
@@ -66,6 +67,7 @@ class Deploy {
 		$this->gitarch_dir      = "{$this->tmp_dir}/git-archive-{$this->slug}";
 		$this->readme_only      = has_arg( 'readme-and-assets-only' );
 		$this->dry_run          = has_arg( 'dry-run' );
+		$this->generate_zip     = has_arg( 'generate-zip' );
 
 		if ( $this->readme_only ) {
 			$this->commit_msg = 'Update readme and assets with NextgenThemes WordPress Plugin Deploy';
@@ -171,7 +173,32 @@ class Deploy {
 			cmd( 'svn commit -m %s', $this->commit_msg );
 		}
 
+		$this->generate_zip();
+
 		echo '✓ Plugin deployed!';
+	}
+
+	private function generate_zip(): void {
+		if ( ! $this->generate_zip ) {
+			return;
+		}
+
+		echo '➤ Generating zip file...' . PHP_EOL;
+
+		$symlink_path = "{$this->svn_dir}/{$this->slug}";
+		$zip_dir      = getenv( 'GITHUB_WORKSPACE' ) ?: getcwd();
+		$zip_path     = "{$zip_dir}/{$this->slug}.zip";
+
+		symlink( "{$this->svn_dir}/trunk", $symlink_path );
+		cmd( 'zip -r %s %s', $zip_path, $symlink_path );
+		unlink( $symlink_path );
+
+		$github_output = getenv( 'GITHUB_OUTPUT' );
+		if ( $github_output ) {
+			file_put_contents( $github_output, "zip-path={$zip_path}" . PHP_EOL, FILE_APPEND );
+		}
+
+		echo "✓ Zip file generated at {$zip_path}" . PHP_EOL;
 	}
 }
 

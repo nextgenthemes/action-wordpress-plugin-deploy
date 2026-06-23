@@ -30,6 +30,14 @@ inputs:
   verbose:
     description: Verbose output, boolean
     required: false
+  generate_zip:
+    description: Generate zip file of the plugin
+    required: false
+    default: 'true'
+
+outputs:
+  zip-path:
+    description: Path to the generated zip file
 
 runs:
   using: 'composite'
@@ -51,4 +59,5 @@ runs:
         ${{ ( inputs.readme-and-assets-only && inputs.readme-and-assets-only != 'false' ) && '--readme-and-assets-only' }}
         ${{ ( inputs.verbose && inputs.verbose != 'false' ) && '--verbose' }}
         ${{ ( inputs.dry-run && inputs.dry-run != 'false' ) && '--dry-run' }}
+        ${{ ( inputs.generate_zip && inputs.generate_zip != 'false' ) && '--generate-zip' }}
       shell: bash
