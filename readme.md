@@ -8,7 +8,22 @@ This is based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/a
 
 One of the reasons I originally created this was the lack of the ability to run the action in a different directory. You can do that with `workdir`. I aim for simplicity.
 
-It also supports monorepos or setups where your plugin is in a subdirectory of a git repository. 
+It also supports monorepos or setups where your plugin is in a subdirectory of a git repository.
+
+### Comparison with 10up/action-wordpress-plugin-deploy
+
+| Feature | 10up `deploy.sh` | This action |
+|---|---|---|
+| Source of files | rsync from workspace OR `git archive` | `git archive` only |
+| `.distignore` support | Yes (rsync path only) | No |
+| `.gitattributes` | Used as fallback | Yes — `git archive` respects it |
+| Ships untracked vendor | Only with `.distignore` (rsync path) | No by default, use `--build-dirs=vendor` |
+| Monorepo / subdirectory support | No | Yes (`--git-dir` + subdir) |
+| `--build-dirs` param | No | Yes — rsyncs extra dirs on top of the archive |
+| Runs locally | No | Yes (standalone PHP script) |
+| Dry-run mode | Yes | Yes |
+
+Using `--build-dirs=vendor` you can ship composer dependencies that aren't tracked in git: run `composer install --no-dev` before deploying, then pass `--build-dirs=vendor` and the vendor dir gets rsynced into trunk on top of the `git archive` export.
 
 ## Configuration
 
