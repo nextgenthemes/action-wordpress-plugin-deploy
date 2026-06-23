@@ -2,28 +2,40 @@
 
 > Deploy your plugin to the WordPress.org repository using GitHub Actions.
 
-This Action commits the contents of your Git tag to the WordPress.org plugin repository using the same tag name. It can exclude files as defined in either or `.gitattributes`, and moves anything from a `.wordpress-org` subdirectory to the top-level `assets` directory in Subversion (plugin banners, icons, and screenshots).
+This Action commits the contents of your Git tag to the WordPress.org plugin
+repository using the same tag name. It can exclude files as defined in either or
+`.gitattributes`, and moves anything from a `.wordpress-org` subdirectory to the
+top-level `assets` directory in Subversion (plugin banners, icons, and
+screenshots).
 
-This is based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy) but with a major difference. Its works **locally** and on Github actions.
+This is based on
+[10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy)
+but with a major difference. Its works **locally** and on Github actions.
 
-One of the reasons I originally created this was the lack of the ability to run the action in a different directory. You can do that with `workdir`. I aim for simplicity.
+One of the reasons I originally created this was the lack of the ability to run
+the action in a different directory. You can do that with `workdir`. I aim for
+simplicity.
 
-It also supports monorepos or setups where your plugin is in a subdirectory of a git repository.
+It also supports monorepos or setups where your plugin is in a subdirectory of a
+git repository.
 
 ### Comparison with 10up/action-wordpress-plugin-deploy
 
-| Feature | 10up `deploy.sh` | This action |
-|---|---|---|
-| Source of files | rsync from workspace OR `git archive` | `git archive` only |
-| `.distignore` support | Yes (rsync path only) | No |
-| `.gitattributes` | Used as fallback | Yes — `git archive` respects it |
-| Ships untracked vendor | Only with `.distignore` (rsync path) | No by default, use `--build-dirs=vendor` |
-| Monorepo / subdirectory support | No | Yes (`--git-dir` + subdir) |
-| `--build-dirs` param | No | Yes — rsyncs extra dirs on top of the archive |
-| Runs locally | No | Yes (standalone PHP script) |
-| Dry-run mode | Yes | Yes |
+| Feature                         | 10up `deploy.sh`                      | This action `wp-plugin-deploy.php`           |
+| ------------------------------- | ------------------------------------- | -------------------------------------------- |
+| Source of files                 | rsync from workspace OR `git archive` | `git archive` only                           |
+| `.distignore` support           | Yes (rsync path only)                 | No                                           |
+| `.gitattributes`                | Used as fallback                      | Yes — `git archive` respects it              |
+| Ships untracked vendor          | Only with `.distignore` (rsync path)  | No by default, use `--build-dirs=vendor`     |
+| Monorepo / subdirectory support | No                                    | Yes                                          |
+| `--build-dirs` param            | No                                    | Yes — rsync extra dirs on top of the archive |
+| Runs locally                    | No                                    | Yes                                          |
+| Dry-run mode                    | Yes                                   | Yes                                          |
 
-Using `--build-dirs=vendor` you can ship composer dependencies that aren't tracked in git: run `composer install --no-dev` before deploying, then pass `--build-dirs=vendor` and the vendor dir gets rsynced into trunk on top of the `git archive` export.
+Using `--build-dirs=vendor` you can ship composer dependencies that aren't
+tracked in git: run `composer install --no-dev` before deploying, then pass
+`--build-dirs=vendor` and the vendor dir gets rsynced into trunk on top of the
+`git archive` export.
 
 ## Configuration
 
@@ -31,66 +43,77 @@ Using `--build-dirs=vendor` you can ship composer dependencies that aren't track
 
 `SVN_USERNAME` and `SVN_PASSWORD`
 
-[Secrets are set in your repository settings](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets). They cannot be viewed once stored.
+[Secrets are set in your repository settings](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets).
+They cannot be viewed once stored.
 
 ### Supported arguments
 
-See `inputs` in [action.yml](https://github.com/nextgenthemes/action-wordpress-plugin-deploy/blob/master/action.yml) for more details. Where does Github actually present those?
+See `inputs` in
+[action.yml](https://github.com/nextgenthemes/action-wordpress-plugin-deploy/blob/master/action.yml)
+for more details. Where does Github actually present those?
 
 ```yaml
 - name: Deploy
   uses: nextgenthemes/action-wordpress-plugin-deploy@stable
   with:
-    workdir: your-plugin-slug
-    version: ${{ steps.get_version.outputs.VERSION }}
-    svn_user: ${{ secrets.SVN_USERNAME }}
-    svn_pass: ${{ secrets.SVN_PASSWORD }}
-    build_dirs: build, assets
-    readme-and-assets-only: false
-    dry-run: false
-    verbose: true
+      workdir: your-plugin-slug
+      version: ${{ steps.get_version.outputs.VERSION }}
+      svn_user: ${{ secrets.SVN_USERNAME }}
+      svn_pass: ${{ secrets.SVN_PASSWORD }}
+      build_dirs: build, assets
+      readme-and-assets-only: false
+      dry-run: false
+      verbose: true
 ```
 
-### Example run configuration ###
+### Example run configuration
 
-1. This runs only if a previews run named `test` succeeded. And if the commit it an actual tag that does not have `alpha` in the tag.
-1. Key part on the checkout is you need to checkout inside a directory that is named after your plugin slug. Because that is how the action detects your plugin slug.
+1. This runs only if a previews run named `test` succeeded. And if the commit it
+   an actual tag that does not have `alpha` in the tag.
+1. Key part on the checkout is you need to checkout inside a directory that is
+   named after your plugin slug. Because that is how the action detects your
+   plugin slug.
 1. The action needs a relative `workdir` to your plugins directory.
 
 ```yaml
-  deploy:
+deploy:
     if: >-
-      startsWith(github.ref, 'refs/tags')
-      && ! contains(github.ref, 'alpha')
+        startsWith(github.ref, 'refs/tags')
+        && ! contains(github.ref, 'alpha')
     needs: test
     name: SVN commit to wp.org
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          path: your-plugin-slug
+        - name: Checkout
+          uses: actions/checkout@v3
+          with:
+              path: your-plugin-slug
 
-      - name: Get the version
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        - name: Get the version
+          id: get_version
+          run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Deploy
-        uses: nextgenthemes/action-wordpress-plugin-deploy@master
-        with:
-          workdir: your-plugin-slug
-          version: ${{ steps.get_version.outputs.VERSION }}
-          svn_user: ${{ secrets.SVN_USERNAME }}
-          svn_pass: ${{ secrets.SVN_PASSWORD }}
+        - name: Deploy
+          uses: nextgenthemes/action-wordpress-plugin-deploy@master
+          with:
+              workdir: your-plugin-slug
+              version: ${{ steps.get_version.outputs.VERSION }}
+              svn_user: ${{ secrets.SVN_USERNAME }}
+              svn_pass: ${{ secrets.SVN_PASSWORD }}
 ```
 
-Lets say you have a monorepo or subdirectory git setup. Given a `plugins/your-plugin-slug` directory inside your git repo, you wound use no `path:` for the Checkout step and for the Deploy step `workdir` you would use `plugins/your-plugin-slug`.
+Lets say you have a monorepo or subdirectory git setup. Given a
+`plugins/your-plugin-slug` directory inside your git repo, you wound use no
+`path:` for the Checkout step and for the Deploy step `workdir` you would use
+`plugins/your-plugin-slug`.
 
 ## Running it locally
 
-Should run on MacOS and probably everywhere where you can install rsync, subversion and php-cli. On Windows use WSL. Only tested with Ubuntu 22.04.
+Should run on MacOS and probably everywhere where you can install rsync,
+subversion and php-cli. On Windows use WSL. Only tested with Ubuntu 22.04.
 
-You need subversion and php-cli installed. On Debian/Ubuntu and derivatives you can do:
+You need subversion and php-cli installed. On Debian/Ubuntu and derivatives you
+can do:
 
 ```bash
 sudo apt install php-cli subversion rsync
@@ -103,13 +126,23 @@ wget --output-document="$HOME"/bin/wp-plugin-deploy https://raw.githubuserconten
 chmod +x ~/bin/wp-plugin-deploy
 ```
 
-You now can release your plugin to wp.org directly. The plugin slug is taken from the directory name. This needs to be git versioned and the version you want to deploy needs to be tagged. This will do a `git achieve` for the `--version=` tag you feed to the script. This will **not** deploy the current files you have checked out. (except for `--readme-and-assets-only`) Meaning you can be on `experimental-branch-xyz` working on a broken plugin as long as you correctly tagged a stable version in git previously you can release that version to wp.org without switching branches or checking out that tag.
+You now can release your plugin to wp.org directly. The plugin slug is taken
+from the directory name. This needs to be git versioned and the version you want
+to deploy needs to be tagged. This will do a `git achieve` for the `--version=`
+tag you feed to the script. This will **not** deploy the current files you have
+checked out. (except for `--readme-and-assets-only`) Meaning you can be on
+`experimental-branch-xyz` working on a broken plugin as long as you correctly
+tagged a stable version in git previously you can release that version to wp.org
+without switching branches or checking out that tag.
 
-If you do not supply --svn-user and --svn-pass (don't!) you should be asked for your wp.org credentials and your OS may save them and may later be able deploy without a password or by only unlocking your OS password manager.
+If you do not supply --svn-user and --svn-pass (don't!) you should be asked for
+your wp.org credentials and your OS may save them and may later be able deploy
+without a password or by only unlocking your OS password manager.
 
 ```bash
 cd /path/to/your-plugin-slug
 wp-plugin-deploy --version=1.0.0 --verbose
 ```
 
-You can use `--dry-run` and after the command has finished inspect your `/tmp/wp-deploy` directory to see if everything is as expected.
+You can use `--dry-run` and after the command has finished inspect your
+`/tmp/wp-deploy` directory to see if everything is as expected.
