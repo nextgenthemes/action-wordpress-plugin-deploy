@@ -3,9 +3,11 @@
 
 declare(strict_types = 1);
 
-// phpcs:disable WordPress.WP.AlternativeFunctions, WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.PHP.DiscouragedPHPFunctions.system_calls_system
-// Allow functions and class in the same file
+// phpcs:disable WordPress.WP.AlternativeFunctions
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_var_export
 // phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed
+// phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.system_calls_system
 
 exit_on_warnings();
 
