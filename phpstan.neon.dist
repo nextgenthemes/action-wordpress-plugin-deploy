@@ -1,6 +1,5 @@
 includes:
 	- ../../phpstan.base.neon
 parameters:
-	level: 6
 	paths:
 		- wp-plugin-deploy.php
