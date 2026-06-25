@@ -3,8 +3,7 @@
 ## Folder Structure (GitHub Runner)
 
 ```
-/home/runner/work/wpdev/wpdev/                    ← GITHUB_WORKSPACE (parent repo checked out by deploy job)
-/home/runner/work/wpdev/wpdev/{plugin-slug}/       ← plugin repo checkout (e.g. tweakmaster)
+/home/runner/work/wpdev/{slug}/                     ← GITHUB_WORKSPACE = plugin repo checkout (e.g. tweakmaster)
 /home/runner/work/_actions/nextgenthemes/action-wordpress-plugin-deploy/master/   ← this action's location
 
 /tmp/wp-deploy/                                     ← temp working dir (cleaned at start)
@@ -12,7 +11,7 @@
   svn-{slug}/                                       ← SVN checkout (only in SVN deploy path)
   {slug}                                            ← symlink to source dir for zipping
 
-Output: /home/runner/work/wpdev/wpdev/{slug}.zip
+Output: /home/runner/work/wpdev/wpdev/{slug}.zip    ← in GITHUB_WORKSPACE (parent repo root)
 ```
 
 ## Steps
