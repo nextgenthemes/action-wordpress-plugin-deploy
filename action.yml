@@ -48,7 +48,7 @@ runs:
     - id: deploy
       run: >
         deno run --allow-all
-        ${{ github.action_path }}/wp-plugin-deploy.ts
+        ${{ github.action_path }}/src/wp-plugin-deploy.ts
         --workdir='${{ inputs.workdir }}'
         --build-dirs='${{ inputs.build_dirs }}'
         --version='${{ inputs.version }}'

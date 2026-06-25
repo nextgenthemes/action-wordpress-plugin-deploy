@@ -10,7 +10,7 @@ import { basename, relative, resolve } from '@std/path';
 const DOC = `Deploy plugin to WordPress.org SVN and/or generate zip.
 
 Usage:
-  wp-plugin-deploy.ts --version=<version> --svn-user=<user> --svn-pass=<pass> [options]
+  wp-plugin-deploy.ts --version=<version> [--svn-user=<user> --svn-pass=<pass>] [options]
   wp-plugin-deploy.ts --readme-and-assets-only [options]
   wp-plugin-deploy.ts -h | --help
 
@@ -22,12 +22,12 @@ Options:
   --build-dirs=<dirs>          Comma-separated build directories.
   --readme-and-assets-only     Only update readme and .wordpress-org assets.
   --verbose                    Print commands being run.
-  --generate-zip               Generate zip archive. [default: true]
+  --generate-zip               Generate zip archive.
   --dry-run                    Skip SVN commit.
   -h --help                    Show this screen.
 `;
 
-interface CliArgs {
+export interface CliArgs {
 	version?: string;
 	svnUser?: string;
 	svnPass?: string;
@@ -39,7 +39,7 @@ interface CliArgs {
 	dryRun: boolean;
 }
 
-interface Ctx {
+export interface Ctx {
 	slug: string;
 	pluginDir: string;
 	gitTopLevel: string;
@@ -59,7 +59,7 @@ interface Ctx {
 	commitMsg: string;
 }
 
-function parseArgs(argv = Deno.args): CliArgs {
+export function parseArgs(argv = Deno.args): CliArgs {
 	const raw: Record<string, unknown> = docopt(DOC, { argv });
 
 	return {
@@ -70,15 +70,20 @@ function parseArgs(argv = Deno.args): CliArgs {
 		buildDirs: parseBuildDirs(String(raw['--build-dirs'] ?? '')),
 		readmeAndAssetsOnly: Boolean(raw['--readme-and-assets-only']),
 		verbose: Boolean(raw['--verbose']),
-		generateZip: raw['--generate-zip'] !== false,
+		generateZip: Boolean(raw['--generate-zip']),
 		dryRun: Boolean(raw['--dry-run']),
 	};
 }
 
-function parseBuildDirs(raw: string): string[] {
-	return [...new Set(
-		raw.split(',').map(s => s.trim()).filter(Boolean),
-	)];
+export function parseBuildDirs(raw: string): string[] {
+	return [
+		...new Set(
+			raw
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean)
+		),
+	];
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -102,7 +107,7 @@ async function readHead(path: string, maxBytes = 4096): Promise<string> {
 
 // ─── Setup / paths ──────────────────────────────────────────────────────────
 
-async function buildCtx(args: CliArgs): Promise<Ctx> {
+export async function buildCtx(args: CliArgs): Promise<Ctx> {
 	const cwd = Deno.cwd();
 	const pluginDir = args.workdir ? resolve(cwd, args.workdir) : cwd;
 	Deno.chdir(pluginDir);
@@ -155,8 +160,8 @@ async function fixGitConfig(cwd: string): Promise<void> {
 
 // ─── Deploy check ───────────────────────────────────────────────────────────
 
-async function shouldDeploy(ctx: Ctx): Promise<boolean> {
-	if (!await exists(ctx.pluginDir + '/.wordpress-org')) {
+export async function shouldDeploy(ctx: Ctx): Promise<boolean> {
+	if (!(await exists(ctx.pluginDir + '/.wordpress-org'))) {
 		return false;
 	}
 	if (/alpha|beta|dev/i.test(ctx.version)) {
@@ -167,18 +172,16 @@ async function shouldDeploy(ctx: Ctx): Promise<boolean> {
 
 // ─── File preparation ───────────────────────────────────────────────────────
 
-async function prepareFiles(ctx: Ctx, target: string): Promise<void> {
+export async function prepareFiles(ctx: Ctx, target: string): Promise<void> {
 	await Deno.mkdir(target, { recursive: true });
 
-	const ref = ctx.subdir
-		? `${ctx.version}:${ctx.subdir}`
-		: ctx.version;
+	const ref = ctx.subdir ? `${ctx.version}:${ctx.subdir}` : ctx.version;
 
 	await $`git --git-dir=${ctx.gitTopLevel}/.git archive ${ref} | tar x --directory=${target}`;
 
 	for (const dir of ctx.buildDirs) {
 		const src = `${ctx.pluginDir}/${dir}`;
-		if (!await exists(src)) {
+		if (!(await exists(src))) {
 			fail(`Build dir ${src} does not exist`);
 		}
 		await $`rsync -r --checksum --delete ${src}/ ${target}/`;
@@ -187,8 +190,10 @@ async function prepareFiles(ctx: Ctx, target: string): Promise<void> {
 
 // ─── Zip generation ─────────────────────────────────────────────────────────
 
-async function generateZip(ctx: Ctx, sourceDir: string): Promise<void> {
-	if (!ctx.generateZip) return;
+export async function generateZip(ctx: Ctx, sourceDir: string): Promise<void> {
+	if (!ctx.generateZip) {
+		return;
+	}
 
 	status('➤', 'Generating zip file...');
 
@@ -203,7 +208,11 @@ async function generateZip(ctx: Ctx, sourceDir: string): Promise<void> {
 		await $`zip -r ${zipPath} ${ctx.slug}`;
 	} finally {
 		Deno.chdir(cwd);
-		try { await Deno.remove(symlinkPath); } catch { /* ignore */ }
+		try {
+			await Deno.remove(symlinkPath);
+		} catch {
+			/* ignore */
+		}
 	}
 
 	const githubOutput = Deno.env.get('GITHUB_OUTPUT');
@@ -216,8 +225,8 @@ async function generateZip(ctx: Ctx, sourceDir: string): Promise<void> {
 
 // ─── Readme ─────────────────────────────────────────────────────────────────
 
-async function getStableTag(readmeFile: string): Promise<string> {
-	if (!await exists(readmeFile)) {
+export async function getStableTag(readmeFile: string): Promise<string> {
+	if (!(await exists(readmeFile))) {
 		fail('No readme.txt found');
 	}
 
@@ -248,7 +257,8 @@ async function svnAddAll(): Promise<void> {
 
 async function svnRemoveDeleted(): Promise<void> {
 	const out = await $`svn status`.text();
-	const deleted: string[] = out.split('\n')
+	const deleted: string[] = out
+		.split('\n')
 		.filter((line: string) => line.startsWith('!'))
 		.map((line: string) => line.replace(/^!\s*/, '').trim())
 		.filter(Boolean);
@@ -269,10 +279,27 @@ async function svnSetScreenshotMimeTypes(): Promise<void> {
 		['gif', 'image/gif'],
 		['svg', 'image/svg+xml'],
 	];
+	let hasAssets = false;
+	try {
+		hasAssets = await exists('assets');
+	} catch {
+		return;
+	}
+	if (!hasAssets) {
+		return;
+	}
+
 	for (const [ext, mime] of types) {
-		const count = parseInt(
-			(await $`ls assets/*.${ext} 2>/dev/null | wc -l`.noThrow().text()).trim(),
-		);
+		let count = 0;
+		try {
+			for await (const entry of Deno.readDir('assets')) {
+				if (entry.isFile && entry.name.endsWith(`.${ext}`)) {
+					count++;
+				}
+			}
+		} catch {
+			continue;
+		}
 		if (count > 0) {
 			await $`svn propset svn:mime-type ${mime} assets/*.${ext}`;
 		}
@@ -289,11 +316,11 @@ async function svnCommit(ctx: Ctx): Promise<void> {
 
 // ─── Main flow ──────────────────────────────────────────────────────────────
 
-async function run(ctx: Ctx): Promise<void> {
+export async function run(ctx: Ctx): Promise<void> {
 	await $`rm -rf ${ctx.tmpDir}`;
 
 	// ── Zip-only path ──
-	if (!await shouldDeploy(ctx)) {
+	if (!(await shouldDeploy(ctx))) {
 		await prepareFiles(ctx, ctx.gitarchDir);
 		await generateZip(ctx, ctx.gitarchDir);
 		return;
@@ -306,7 +333,10 @@ async function run(ctx: Ctx): Promise<void> {
 	if (ctx.readmeOnly) {
 		const stableTag = await getStableTag(`${ctx.pluginDir}/readme.txt`);
 		await $`svn update --set-depth immediates ${ctx.svnDir}/tags/${stableTag}`;
-		await Deno.copyFile(`${ctx.pluginDir}/readme.txt`, `${ctx.svnDir}/tags/${stableTag}/readme.txt`);
+		await Deno.copyFile(
+			`${ctx.pluginDir}/readme.txt`,
+			`${ctx.svnDir}/tags/${stableTag}/readme.txt`
+		);
 		await Deno.copyFile(`${ctx.pluginDir}/readme.txt`, `${ctx.svnDir}/trunk/readme.txt`);
 	} else {
 		await prepareFiles(ctx, `${ctx.svnDir}/trunk`);
