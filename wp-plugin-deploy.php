@@ -144,7 +144,7 @@ class Deploy {
 
 		echo '➤ Generating zip file...' . PHP_EOL;
 
-		$symlink_path = "{$source_dir}/{$this->slug}";
+		$symlink_path = "{$this->tmp_dir}/{$this->slug}";
 		$zip_dir      = getenv( 'GITHUB_WORKSPACE' ) ?: getcwd();
 		$zip_path     = "{$zip_dir}/{$this->slug}.zip";
 
