@@ -8,6 +8,7 @@ declare(strict_types = 1);
 // phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_var_export
 // phpcs:disable Universal.Files.SeparateFunctionsFromOO.Mixed
 // phpcs:disable WordPress.PHP.DiscouragedPHPFunctions.system_calls_system
+// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
 
 exit_on_warnings();
 

@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import { exists } from '@std/fs';
 import { join } from '@std/path';
 import { $ } from '@david/dax';
@@ -13,7 +13,7 @@ import {
 	shouldDeploy,
 	type CliArgs,
 	type Ctx,
-} from './wp-plugin-deploy.ts';
+} from '../src/wp-plugin-deploy.ts';
 
 const TEST_BASE = '/tmp/wp-deploy-test';
 

@@ -1,24 +1,23 @@
 # WordPress.org Plugin Deploy
 
-Deploy your plugin to the WordPress.org repository via GitHub Actions (or
-locally). Uses `git archive` to export the tagged commit, rsyncs it into SVN
-trunk, and copies `.wordpress-org/` to `assets/`.
+Deploy your plugin to the WordPress.org repository via GitHub Actions (or locally). Uses `git archive` to export the
+tagged commit, rsyncs it into SVN trunk, and copies `.wordpress-org/` to `assets/`.
 
-Based on
-[10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy),
-rewritten in PHP with monorepo support and local execution.
+Based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy), rewritten in PHP
+with monorepo support and local execution.
 
 ### Comparison with 10up/action-wordpress-plugin-deploy
 
-| Feature                         | 10up `deploy.sh`                      | This action `wp-plugin-deploy.php`           |
+| Feature                         | 10up `deploy.sh`                      | This action `wp-plugin-deploy.ts`            |
 | ------------------------------- | ------------------------------------- | -------------------------------------------- |
+| written in                      | bash                                  | ~~php~~ typescript                           |
 | Source of files                 | rsync from workspace OR `git archive` | `git archive` only                           |
 | `.distignore` support           | Yes (rsync path only)                 | No                                           |
 | `.gitattributes`                | Used as fallback                      | Yes — `git archive` respects it              |
 | Ships untracked vendor          | Only with `.distignore` (rsync path)  | No by default, use `--build-dirs=vendor`     |
 | Monorepo / subdirectory support | No                                    | Yes                                          |
 | `--build-dirs` param            | No                                    | Yes — rsync extra dirs on top of the archive |
-| Runs locally                    | No                                    | Yes                                          |
+| Runs locally                    | No                                    | Yes (Requires Deno)                          |
 | Dry-run mode                    | Yes                                   | Yes                                          |
 
 ## Required secrets
@@ -39,14 +38,13 @@ rewritten in PHP with monorepo support and local execution.
 | `dry-run`                | no       | Exit before SVN commit (boolean)                                |
 | `verbose`                | no       | Verbose output (boolean)                                        |
 
-\* `version` is required when deploying a full release, not for readme-only
-updates.
+\* `version` is required when deploying a full release, not for readme-only updates.
 
 ## Slug detection
 
-The plugin slug is taken from `basename(getcwd())` after applying `workdir`. For
-example, with `workdir: plugins/my-slug`, the slug becomes `my-slug`. The SVN
-URL is derived as `https://plugins.svn.wordpress.org/{slug}/`.
+The plugin slug is taken from `basename(getcwd())` after applying `workdir`. For example, with
+`workdir: plugins/my-slug`, the slug becomes `my-slug`. The SVN URL is derived as
+`https://plugins.svn.wordpress.org/{slug}/`.
 
 ## Usage
 
@@ -54,14 +52,14 @@ URL is derived as `https://plugins.svn.wordpress.org/{slug}/`.
 - name: Deploy
   uses: nextgenthemes/action-wordpress-plugin-deploy@master
   with:
-      workdir: your-plugin-slug
-      version: ${{ steps.get_version.outputs.VERSION }}
-      svn_user: ${{ secrets.SVN_USERNAME }}
-      svn_pass: ${{ secrets.SVN_PASSWORD }}
-      build_dirs: vendor
-      readme-and-assets-only: false
-      dry-run: false
-      verbose: true
+   workdir: your-plugin-slug
+   version: ${{ steps.get_version.outputs.VERSION }}
+   svn_user: ${{ secrets.SVN_USERNAME }}
+   svn_pass: ${{ secrets.SVN_PASSWORD }}
+   build_dirs: vendor
+   readme-and-assets-only: false
+   dry-run: false
+   verbose: true
 ```
 
 ### Full release example
@@ -70,30 +68,29 @@ Checkout into a directory matching the slug, deploy from it:
 
 ```yaml
 deploy:
-    if: startsWith(github.ref, 'refs/tags') && !contains(github.ref, 'alpha')
-    runs-on: ubuntu-latest
-    steps:
-        - uses: actions/checkout@v3
-          with:
-              path: your-plugin-slug
+ if: startsWith(github.ref, 'refs/tags') && !contains(github.ref, 'alpha')
+ runs-on: ubuntu-latest
+ steps:
+  - uses: actions/checkout@v3
+    with:
+     path: your-plugin-slug
 
-        - name: Get the version
-          id: get_version
-          run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+  - name: Get the version
+    id: get_version
+    run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-        - name: Deploy
-          uses: nextgenthemes/action-wordpress-plugin-deploy@master
-          with:
-              workdir: your-plugin-slug
-              version: ${{ steps.get_version.outputs.VERSION }}
-              svn_user: ${{ secrets.SVN_USERNAME }}
-              svn_pass: ${{ secrets.SVN_PASSWORD }}
+  - name: Deploy
+    uses: nextgenthemes/action-wordpress-plugin-deploy@master
+    with:
+     workdir: your-plugin-slug
+     version: ${{ steps.get_version.outputs.VERSION }}
+     svn_user: ${{ secrets.SVN_USERNAME }}
+     svn_pass: ${{ secrets.SVN_PASSWORD }}
 ```
 
 ### Monorepo / subdirectory
 
-If your plugin is at `plugins/your-plugin-slug`, omit `path:` and use
-`workdir: plugins/your-plugin-slug`.
+If your plugin is at `plugins/your-plugin-slug`, omit `path:` and use `workdir: plugins/your-plugin-slug`.
 
 ### Readme-and-assets-only mode
 
@@ -106,10 +103,9 @@ When `readme-and-assets-only: true`, the action:
 
 ### build_dirs
 
-Ship directories not tracked in git (e.g. Composer vendor). Run
-`composer install --no-dev` before the deploy step, then pass
-`build_dirs: vendor`. The directory is rsynced into trunk on top of the
-`git archive` export. **Exits with error if the directory doesn't exist.**
+Ship directories not tracked in git (e.g. Composer vendor). Run `composer install --no-dev` before the deploy step, then
+pass `build_dirs: vendor`. The directory is rsynced into trunk on top of the `git archive` export. **Exits with error if
+the directory doesn't exist.**
 
 ```yaml
 - name: Install Composer dependencies
@@ -118,7 +114,7 @@ Ship directories not tracked in git (e.g. Composer vendor). Run
 - name: Deploy
   uses: nextgenthemes/action-wordpress-plugin-deploy@master
   with:
-      build_dirs: vendor
+   build_dirs: vendor
 ```
 
 ## What the action does
@@ -150,8 +146,6 @@ wp-plugin-deploy --version=1.0.0 --verbose
 ```
 
 - Slug is taken from the directory name.
-- Uses `git archive` for the tag — your working tree doesn't matter (except for
-  `--readme-and-assets-only`).
-- Without `--svn-user`/`--svn-pass`, you'll be prompted for credentials (OS
-  keychain may remember them).
+- Uses `git archive` for the tag — your working tree doesn't matter (except for `--readme-and-assets-only`).
+- Without `--svn-user`/`--svn-pass`, you'll be prompted for credentials (OS keychain may remember them).
 - Use `--dry-run` first, inspect `/tmp/wp-deploy` to verify.
