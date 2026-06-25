@@ -10,11 +10,12 @@ TypeScript (originally PHP) with monorepo support and local execution.
 
 | Feature                         | 10up `deploy.sh`                      | This action `wp-plugin-deploy.ts`            |
 | ------------------------------- | ------------------------------------- | -------------------------------------------- |
+| Runs locally                    | No (Github action specific)           | Yes (Requires Deno)                          |
 | written in                      | bash                                  | ~~php~~ typescript                           |
-| Source of files                 | rsync from workspace OR `git archive` | `git archive` only                           |
-| `.distignore` support           | Yes (rsync path only)                 | No                                           |
+| Source of files                 | rsync from workspace OR `git archive` | `git archive`, rsync only `build_dirs:`      |
+| `.distignore` support           | Yes (rsync path only)                 | No (intentional, hate the idea)              |
 | `.gitattributes`                | Used as fallback                      | Yes — `git archive` respects it              |
-| Ships untracked vendor          | Only with `.distignore` (rsync path)  | No by default, use `--build-dirs=vendor`     |
+| Ships untracked vendor          | Only with `.distignore` (rsync path)  | No by default, use `build_dirs:`             |
 | Monorepo / subdirectory support | No                                    | Yes                                          |
 | `--build-dirs` param            | No                                    | Yes — rsync extra dirs on top of the archive |
 | `BUILD_DIR` env (full replace)  | Yes                                   | No                                           |
@@ -22,7 +23,6 @@ TypeScript (originally PHP) with monorepo support and local execution.
 | `SLUG` env override             | Yes — defaults to repo name           | No — always derived from directory name      |
 | `--readme-and-assets-only`      | No                                    | Yes                                          |
 | `generate-zip` default          | `false`                               | `true` (via action.yml input default)        |
-| Runs locally                    | No                                    | Yes (Requires Deno)                          |
 | Dry-run mode                    | Yes                                   | Yes                                          |
 
 ## Required secrets

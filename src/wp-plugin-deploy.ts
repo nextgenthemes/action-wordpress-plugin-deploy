@@ -3,7 +3,12 @@
 import docopt from 'docopt';
 import { $ } from '@david/dax';
 import { exists } from '@std/fs';
-import { basename, relative, resolve } from '@std/path';
+import { basename, join, relative, resolve } from '@std/path';
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const TMP_DIR = '/tmp/wp-deploy';
+const COMPOSER_CMD = ['composer', 'install', '--no-interaction', '--no-dev', '--classmap-authoritative'];
 
 // ─── CLI Args ───────────────────────────────────────────────────────────────
 
@@ -117,8 +122,6 @@ export async function buildCtx(args: CliArgs): Promise<Ctx> {
 	const slug = basename(pluginDir);
 	const gitTopLevel = (await $`git rev-parse --show-toplevel`.text()).trim();
 	const subdir = gitTopLevel === pluginDir ? '' : relative(gitTopLevel, pluginDir);
-	const tmpDir = '/tmp/wp-deploy';
-
 	const readmeOnly = args.readmeAndAssetsOnly;
 	let version: string;
 	let commitMsg: string;
@@ -144,10 +147,10 @@ export async function buildCtx(args: CliArgs): Promise<Ctx> {
 		verbose: args.verbose,
 		generateZip: args.generateZip,
 		dryRun: args.dryRun,
-		tmpDir,
+		tmpDir: TMP_DIR,
 		svnUrl: `https://plugins.svn.wordpress.org/${slug}/`,
-		svnDir: `${tmpDir}/svn-${slug}`,
-		gitarchDir: `${tmpDir}/git-archive-${slug}`,
+		svnDir: `${TMP_DIR}/svn-${slug}`,
+		gitarchDir: `${TMP_DIR}/git-archive-${slug}`,
 		commitMsg,
 	};
 }
@@ -179,6 +182,20 @@ export async function prepareFiles(ctx: Ctx, target: string): Promise<void> {
 
 	await $`git --git-dir=${ctx.gitTopLevel}/.git archive ${ref} | tar x --directory=${target}`;
 
+	const composerJson = join(target, 'composer.json');
+	if (await exists(composerJson)) {
+		const hasDeps = await $`jq -e '
+			[.require, .["require-dev"]] | add
+			| del(.php)
+			| with_entries(select(.key | startswith("ext-") | not))
+			| length > 0
+		' ${composerJson}`.noThrow();
+		if (hasDeps.code === 0) {
+			status('➤', 'Running composer install in archive target...');
+			await $`${COMPOSER_CMD}`.cwd(target);
+		}
+	}
+
 	for (const dir of ctx.buildDirs) {
 		const src = `${ctx.pluginDir}/${dir}`;
 		if (!(await exists(src))) {
@@ -198,8 +215,10 @@ export async function generateZip(ctx: Ctx, sourceDir: string): Promise<void> {
 	status('➤', 'Generating zip file...');
 
 	const symlinkPath = `${ctx.tmpDir}/${ctx.slug}`;
-	const zipDir = Deno.env.get('GITHUB_WORKSPACE') || ctx.pluginDir;
+	const zipDir = `${ctx.pluginDir}/dist`;
 	const zipPath = `${zipDir}/${ctx.slug}.zip`;
+
+	await Deno.mkdir(zipDir, { recursive: true });
 
 	const cwd = Deno.cwd();
 	try {

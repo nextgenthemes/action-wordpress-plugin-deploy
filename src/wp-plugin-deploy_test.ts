@@ -330,16 +330,29 @@ Deno.test({
 	name: 'prepareFiles — extracts from git archive',
 	async fn() {
 		const testDir = join(TEST_BASE, `prepfiles-${uid()}`);
+		const repoDir = join(testDir, 'repo');
 		const target = join(testDir, 'target');
 		await Deno.mkdir(target, { recursive: true });
 
+		// Create a minimal git repo with a composer.json that has no real deps
+		await Deno.mkdir(repoDir, { recursive: true });
+		await Deno.writeTextFile(join(repoDir, 'plugin.php'), '<?php\n');
+		await Deno.writeTextFile(join(repoDir, 'readme.txt'), 'readme');
+		await Deno.writeTextFile(
+			join(repoDir, 'composer.json'),
+			JSON.stringify({ require: { php: '>=8.0' } })
+		);
+
 		const original = Deno.cwd();
-		const tweakmaster = '/home/user23/wpdev/packages/tweakmaster';
-		Deno.chdir(tweakmaster);
+		Deno.chdir(repoDir);
 		try {
+			await $`git init`;
+			await $`git add --all`;
+			await $`git commit --message init --no-gpg-sign`;
+
 			const ctx = makeCtx({
-				pluginDir: tweakmaster,
-				gitTopLevel: tweakmaster,
+				pluginDir: repoDir,
+				gitTopLevel: repoDir,
 				subdir: '',
 				version: 'HEAD',
 			});
@@ -347,8 +360,10 @@ Deno.test({
 			await prepareFiles(ctx, target);
 
 			// Should have extracted the plugin file
-			assertEquals(await exists(join(target, 'tweakmaster.php')), true);
+			assertEquals(await exists(join(target, 'plugin.php')), true);
 			assertEquals(await exists(join(target, 'readme.txt')), true);
+			// composer.json should exist but composer install should have been skipped (php-only dep)
+			assertEquals(await exists(join(target, 'composer.json')), true);
 		} finally {
 			Deno.chdir(original);
 			await Deno.remove(testDir, { recursive: true }).catch(() => {});
@@ -379,7 +394,7 @@ Deno.test({
 		try {
 			await generateZip(ctx, sourceDir);
 
-			const zipPath = join(tmpDir, 'test-plugin.zip');
+			const zipPath = join(tmpDir, 'dist', 'test-plugin.zip');
 			assertEquals(await exists(zipPath), true);
 
 			// Verify zip contents using unzip -l
@@ -400,45 +415,55 @@ Deno.test({
 	name: 'integration — zip-only path for pre-release tag',
 	async fn() {
 		const testDir = join(TEST_BASE, `int-zip-${uid()}`);
-		const repoDir = join(testDir, 'tweakmaster');
-		await Deno.mkdir(testDir, { recursive: true });
+		const repoDir = join(testDir, 'my-plugin');
+		await Deno.mkdir(repoDir, { recursive: true });
 
-		// Clone the real tweakmaster repo at an alpha tag
-		const realRepo = '/home/user23/wpdev/packages/tweakmaster';
-		await $`git clone ${realRepo} ${repoDir}`;
-		await $`git checkout 1.1.3-alpha.9`.cwd(repoDir);
+		// Create a minimal git repo with an alpha tag so shouldDeploy returns false
+		await Deno.writeTextFile(join(repoDir, 'my-plugin.php'), '<?php\n');
+		await Deno.writeTextFile(join(repoDir, 'readme.txt'), 'readme');
+		await Deno.writeTextFile(
+			join(repoDir, 'composer.json'),
+			JSON.stringify({ require: { php: '>=8.0' } })
+		);
 
+		const original = Deno.cwd();
+		Deno.chdir(repoDir);
 		try {
-			const original = Deno.cwd();
-			Deno.chdir(repoDir);
-			try {
-				const args = parseArgs(['--version=1.1.3-alpha.9', '--generate-zip', '--verbose']);
+			await $`git init`;
+			await $`git add --all`;
+			await $`git commit --message init --no-gpg-sign`;
+			await $`git tag 1.0.0-alpha.1`;
 
-				const ctx = await buildCtx(args);
-				// Isolate temp dir to our test dir
-				ctx.tmpDir = join(testDir, 'tmp');
-				ctx.gitarchDir = join(ctx.tmpDir, 'git-archive-tweakmaster');
+			const args = parseArgs(['--version=1.0.0-alpha.1', '--generate-zip']);
 
-				await run(ctx);
+			const ctx = await buildCtx(args);
+			// Isolate temp dir to our test dir
+			ctx.tmpDir = join(testDir, 'tmp');
+			ctx.gitarchDir = join(ctx.tmpDir, 'git-archive-my-plugin');
+			// Set pluginDir to repoDir since workdir is not set
+			ctx.pluginDir = repoDir;
+			ctx.slug = 'my-plugin';
+			ctx.gitTopLevel = repoDir;
+			ctx.subdir = '';
 
-				// Zip should exist
-				const zipPath = join(repoDir, 'tweakmaster.zip');
-				assertEquals(await exists(zipPath), true, 'zip should exist for pre-release');
+			await run(ctx);
 
-				// SVN checkout should NOT exist
-				assertEquals(
-					await exists(ctx.svnDir),
-					false,
-					'SVN checkout should not exist for pre-release'
-				);
+			// Zip should exist
+			const zipPath = join(repoDir, 'dist', 'my-plugin.zip');
+			assertEquals(await exists(zipPath), true, 'zip should exist for pre-release');
 
-				// Verify zip has proper structure
-				const listing = await $`unzip -l ${zipPath}`.text();
-				assertStringIncludes(listing, 'tweakmaster/tweakmaster.php');
-			} finally {
-				Deno.chdir(original);
-			}
+			// SVN checkout should NOT exist
+			assertEquals(
+				await exists(ctx.svnDir),
+				false,
+				'SVN checkout should not exist for pre-release'
+			);
+
+			// Verify zip has proper structure
+			const listing = await $`unzip -l ${zipPath}`.text();
+			assertStringIncludes(listing, 'my-plugin/my-plugin.php');
 		} finally {
+			Deno.chdir(original);
 			await Deno.remove(testDir, { recursive: true }).catch(() => {});
 		}
 	},
@@ -461,12 +486,20 @@ Deno.test({
 		await $`git clone ${realRepo} ${repoDir}`;
 		await $`git checkout 1.1.2`.cwd(repoDir);
 
+		// Replace composer.json with minimal deps so composer install is skipped
+		await Deno.writeTextFile(
+			join(repoDir, 'composer.json'),
+			JSON.stringify({ require: { php: '>=8.0' } })
+		);
+		await $`git add composer.json`.cwd(repoDir);
+		await $`git commit --message "test: minimal composer" --no-gpg-sign`.cwd(repoDir);
+
 		try {
 			const original = Deno.cwd();
 			Deno.chdir(repoDir);
 			try {
 				const args = parseArgs([
-					'--version=1.1.2',
+					'--version=HEAD',
 					'--generate-zip',
 					'--dry-run',
 					'--verbose',
@@ -502,7 +535,7 @@ Deno.test({
 
 				// Tag should have been copied
 				assertEquals(
-					await exists(join(ctx.svnDir, 'tags', '1.1.2')),
+					await exists(join(ctx.svnDir, 'tags', 'HEAD')),
 					true,
 					'tag should be copied'
 				);
