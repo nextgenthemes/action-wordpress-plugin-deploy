@@ -89,10 +89,88 @@ class Deploy {
 		}
 	}
 
+	/**
+	 * Determines whether the script should attempt an SVN deploy to WordPress.org.
+	 *
+	 * Returns false when:
+	 *   - The plugin directory has no `.wordpress-org` folder
+	 *   - The version tag contains `alpha`, `beta`, or `dev` (pre-release)
+	 */
+	private function should_deploy(): bool {
+		if ( ! is_dir( "$this->plugin_dir/.wordpress-org" ) ) {
+			return false;
+		}
+
+		if ( preg_match( '/alpha|beta|dev/i', $this->version ?? '' ) ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Extract plugin files from git archive and copy build directories into $target.
+	 */
+	private function prepare_files( string $target ): void {
+		mkdir( $target, 0777, true );
+		cmd(
+			'git --git-dir=%s archive %s | tar x --directory=%s',
+			"$this->git_toplevel_dir/.git",
+			$this->version . ':' . $this->subdir,
+			$target
+		);
+
+		foreach ( $this->build_dirs as $build_dir ) {
+
+			if ( ! file_exists( "$this->plugin_dir/$build_dir" ) ) {
+				echo 'Build dir ' . escapeshellarg( "$this->plugin_dir/$build_dir" ) . ' does not exists.' . PHP_EOL;
+				exit( 1 );
+			}
+
+			cmd( 'rsync -r --checksum --delete %s %s', "$this->plugin_dir/$build_dir", "$target/" );
+		}
+	}
+
+	/**
+	 * Generate a zip archive from the given source directory and set the GITHUB_OUTPUT path.
+	 */
+	private function generate_zip_from( string $source_dir ): void {
+		if ( ! $this->generate_zip ) {
+			return;
+		}
+
+		echo '➤ Generating zip file...' . PHP_EOL;
+
+		$symlink_path = "{$source_dir}/{$this->slug}";
+		$zip_dir      = getenv( 'GITHUB_WORKSPACE' ) ?: getcwd();
+		$zip_path     = "{$zip_dir}/{$this->slug}.zip";
+
+		symlink( $source_dir, $symlink_path );
+		cmd( 'zip -r %s %s', $zip_path, $symlink_path );
+		unlink( $symlink_path );
+
+		$github_output = getenv( 'GITHUB_OUTPUT' );
+		if ( $github_output ) {
+			file_put_contents( $github_output, "zip-path={$zip_path}" . PHP_EOL, FILE_APPEND );
+		}
+
+		echo "✓ Zip file generated at {$zip_path}" . PHP_EOL;
+	}
+
 	public function run(): void {
 
 		// remove temp dir if exists
 		cmd( 'rm -rf %s', $this->tmp_dir );
+
+		// ── Zip-only path (no SVN) ──
+
+		if ( ! $this->should_deploy() ) {
+			$this->prepare_files( $this->gitarch_dir );
+			$this->generate_zip_from( $this->gitarch_dir );
+			exit( 0 );
+		}
+
+		// ── Full SVN deploy ──
 
 		# Checkout just trunk and assets for efficiency
 		# Tagging will be handled on the SVN level
@@ -111,28 +189,7 @@ class Deploy {
 			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/tags/$stable_tag/readme.txt" );
 			copy( "$this->plugin_dir/readme.txt", "$this->svn_dir/trunk/readme.txt" );
 		} else {
-			mkdir( $this->gitarch_dir );
-			cmd(
-				'git --git-dir=%s archive %s | tar x --directory=%s',
-				"$this->git_toplevel_dir/.git",
-				$this->version . ':' . $this->subdir,
-				$this->gitarch_dir
-			);
-			cmd(
-				'rsync -r --checksum --delete --delete-excluded %s %s',
-				"$this->gitarch_dir/",
-				"$this->svn_dir/trunk"
-			);
-
-			foreach ( $this->build_dirs as $build_dir ) {
-
-				if ( ! file_exists( "$this->plugin_dir/$build_dir" ) ) {
-					echo 'Build dir '.escapeshellarg( "$this->plugin_dir/$build_dir" ).' does not exists.' . PHP_EOL;
-					exit( 1 );
-				}
-
-				cmd( 'rsync -r --checksum --delete %s %s', "$this->plugin_dir/$build_dir", "$this->svn_dir/trunk/" );
-			}
+			$this->prepare_files( "{$this->svn_dir}/trunk" );
 		}
 
 		cmd( 'rsync -r --checksum --delete %s %s', "$this->plugin_dir/.wordpress-org/", "$this->svn_dir/assets" );
@@ -175,32 +232,9 @@ class Deploy {
 			cmd( 'svn commit -m %s', $this->commit_msg );
 		}
 
-		$this->generate_zip();
+		$this->generate_zip_from( "{$this->svn_dir}/trunk" );
 
 		echo '✓ Plugin deployed!';
-	}
-
-	private function generate_zip(): void {
-		if ( ! $this->generate_zip ) {
-			return;
-		}
-
-		echo '➤ Generating zip file...' . PHP_EOL;
-
-		$symlink_path = "{$this->svn_dir}/{$this->slug}";
-		$zip_dir      = getenv( 'GITHUB_WORKSPACE' ) ?: getcwd();
-		$zip_path     = "{$zip_dir}/{$this->slug}.zip";
-
-		symlink( "{$this->svn_dir}/trunk", $symlink_path );
-		cmd( 'zip -r %s %s', $zip_path, $symlink_path );
-		unlink( $symlink_path );
-
-		$github_output = getenv( 'GITHUB_OUTPUT' );
-		if ( $github_output ) {
-			file_put_contents( $github_output, "zip-path={$zip_path}" . PHP_EOL, FILE_APPEND );
-		}
-
-		echo "✓ Zip file generated at {$zip_path}" . PHP_EOL;
 	}
 }
 
