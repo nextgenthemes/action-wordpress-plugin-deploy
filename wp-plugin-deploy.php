@@ -148,8 +148,11 @@ class Deploy {
 		$zip_dir      = getenv( 'GITHUB_WORKSPACE' ) ?: getcwd();
 		$zip_path     = "{$zip_dir}/{$this->slug}.zip";
 
+		$cwd = getcwd();
 		symlink( $source_dir, $symlink_path );
-		cmd( 'zip -r %s %s', $zip_path, $symlink_path );
+		chdir( $this->tmp_dir );
+		cmd( 'zip -r %s %s', $zip_path, $this->slug );
+		chdir( $cwd );
 		unlink( $symlink_path );
 
 		$github_output = getenv( 'GITHUB_OUTPUT' );
