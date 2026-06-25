@@ -1,6 +1,6 @@
 name: 'WordPress Plugin Deploy by NextGenThemes'
 description: 'Deploy to the WordPress Plugin Repository'
-author: 'nextgenthemes' # inspired by 10up action
+author: 'nextgenthemes'
 branding:
   icon: 'upload-cloud'
   color: 'blue'
@@ -40,16 +40,15 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - run: php --version
-      shell: bash
+    - name: Setup Deno
+      uses: denoland/setup-deno@e4ec20b0adf9fa2b74b51e41bad0c82fc478ffe9 # v2.1.4
+      with:
+        deno-version: v2.x
 
-    - run: pwd
-      shell: bash
-
-    # https://github.com/actions/runner/issues/2238
     - id: deploy
       run: >
-        ${{ github.action_path }}/wp-plugin-deploy.php
+        deno run --allow-all
+        ${{ github.action_path }}/wp-plugin-deploy.ts
         --workdir='${{ inputs.workdir }}'
         --build-dirs='${{ inputs.build_dirs }}'
         --version='${{ inputs.version }}'
