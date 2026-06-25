@@ -113,10 +113,13 @@ class Deploy {
 	 */
 	private function prepare_files( string $target ): void {
 		mkdir( $target, 0777, true );
+		$ref = $this->subdir
+			? $this->version . ':' . $this->subdir
+			: $this->version;
 		cmd(
 			'git --git-dir=%s archive %s | tar x --directory=%s',
 			"$this->git_toplevel_dir/.git",
-			$this->version . ':' . $this->subdir,
+			$ref,
 			$target
 		);
 
