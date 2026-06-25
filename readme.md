@@ -3,8 +3,8 @@
 Deploy your plugin to the WordPress.org repository via GitHub Actions (or locally). Uses `git archive` to export the
 tagged commit, rsyncs it into SVN trunk, and copies `.wordpress-org/` to `assets/`.
 
-Based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy), rewritten in PHP
-with monorepo support and local execution.
+Based on [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy), rewritten in
+TypeScript (originally PHP) with monorepo support and local execution.
 
 ### Comparison with 10up/action-wordpress-plugin-deploy
 
@@ -17,6 +17,11 @@ with monorepo support and local execution.
 | Ships untracked vendor          | Only with `.distignore` (rsync path)  | No by default, use `--build-dirs=vendor`     |
 | Monorepo / subdirectory support | No                                    | Yes                                          |
 | `--build-dirs` param            | No                                    | Yes — rsync extra dirs on top of the archive |
+| `BUILD_DIR` env (full replace)  | Yes                                   | No                                           |
+| `ASSETS_DIR` env override       | Yes — defaults to `.wordpress-org`    | No — hardcoded to `.wordpress-org`           |
+| `SLUG` env override             | Yes — defaults to repo name           | No — always derived from directory name      |
+| `--readme-and-assets-only`      | No                                    | Yes                                          |
+| `generate-zip` default          | `false`                               | `true` (via action.yml input default)        |
 | Runs locally                    | No                                    | Yes (Requires Deno)                          |
 | Dry-run mode                    | Yes                                   | Yes                                          |
 
